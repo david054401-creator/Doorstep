@@ -446,7 +446,7 @@ export default function SettingsPage() {
         </Section>
 
         {/* ─── Reminders & notifications ──────────────────────────────────── */}
-        <Section title="Reminders &amp; notifications">
+        <Section title="Reminders & notifications">
           {[
             { label: 'Rent day reminders', value: rentDayReminders, set: setRentDayReminders },
             { label: 'Late payment alerts', value: latePaymentAlerts, set: setLatePaymentAlerts },
@@ -512,7 +512,7 @@ export default function SettingsPage() {
         </Section>
 
         {/* ─── Help & support ─────────────────────────────────────────────── */}
-        <Section title="Help &amp; support">
+        <Section title="Help & support">
           <Row
             label="Help center"
             showChevron={false}
@@ -525,7 +525,7 @@ export default function SettingsPage() {
             right={<ExternalLink size={15} color={C.mist} strokeWidth={2} />}
             onClick={() => {}}
           />
-          <Row label="What&apos;s new" last onClick={() => {}} />
+          <Row label="What's new" last onClick={() => {}} />
         </Section>
 
         {/* ─── Refer a friend ─────────────────────────────────────────────── */}
