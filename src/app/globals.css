@@ -1,0 +1,253 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme inline {
+  /* ===================== DOORSTEP DESIGN SYSTEM ===================== */
+
+  /* Primary — "Hearth" */
+  --color-primary-50: #FDF1EB;
+  --color-primary-100: #F4C9B8;
+  --color-primary-400: #E07A5A;
+  --color-primary-500: #C75D3D;
+  --color-primary-600: #A84A2E;
+
+  /* Neutral — "Paper" */
+  --color-ink: #1A1714;
+  --color-charcoal: #3D362F;
+  --color-stone: #6B6058;
+  --color-mist: #A8A099;
+  --color-linen: #E8E3DC;
+  --color-cream: #F5F1EA;
+  --color-white: #FFFFFF;
+
+  /* Semantic */
+  --color-moss: #5C8A3A;
+  --color-moss-bg: #EEF4E5;
+  --color-honey: #D4923B;
+  --color-honey-bg: #FBF1E0;
+  --color-brick: #B8442E;
+  --color-brick-bg: #FAE5DE;
+  --color-sky: #4A7C9E;
+  --color-sky-bg: #E5EEF5;
+
+  /* Typography */
+  --font-display: "Fraunces", serif;
+  --font-body: "Inter", sans-serif;
+
+  /* Spacing scale */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  --spacing-12: 48px;
+  --spacing-16: 64px;
+  --spacing-24: 96px;
+
+  /* Border radius */
+  --radius-btn: 12px;
+  --radius-card: 20px;
+  --radius-input: 12px;
+  --radius-pill: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(26,23,20,0.04);
+  --shadow-md: 0 4px 12px rgba(26,23,20,0.06), 0 1px 3px rgba(26,23,20,0.04);
+  --shadow-lg: 0 12px 32px rgba(26,23,20,0.08), 0 4px 8px rgba(26,23,20,0.04);
+}
+
+/* ===================== GOOGLE FONTS IMPORT (hoisted to top of file) ===================== */
+
+/* ===================== BASE STYLES ===================== */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #F5F1EA;
+  color: #1A1714;
+  font-family: "Inter", sans-serif;
+  font-size: 18px;
+  line-height: 28px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ===================== TYPOGRAPHY UTILITIES ===================== */
+.font-display { font-family: "Fraunces", serif; }
+.font-body { font-family: "Inter", sans-serif; }
+.tabular-nums { font-feature-settings: "tnum"; }
+
+.text-display { font-size: 48px; line-height: 56px; letter-spacing: -0.02em; font-family: "Fraunces", serif; font-weight: 500; }
+.text-h1 { font-size: 36px; line-height: 44px; font-family: "Fraunces", serif; font-weight: 500; }
+.text-h2 { font-size: 28px; line-height: 36px; font-family: "Fraunces", serif; font-weight: 500; }
+.text-h3 { font-size: 22px; line-height: 30px; font-family: "Fraunces", serif; font-weight: 500; }
+.text-body-lg { font-size: 18px; line-height: 28px; }
+.text-body { font-size: 16px; line-height: 24px; }
+.text-small { font-size: 14px; line-height: 20px; }
+.text-tiny { font-size: 12px; line-height: 16px; }
+
+/* ===================== COMPONENT BASE STYLES ===================== */
+.btn-primary {
+  background-color: #C75D3D;
+  color: #FFFFFF;
+  border-radius: 12px;
+  padding: 14px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: "Inter", sans-serif;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background-color 150ms ease-out, transform 100ms ease-out, filter 100ms ease-out;
+  text-decoration: none;
+}
+.btn-primary:hover { background-color: #A84A2E; }
+.btn-primary:active { transform: scale(0.97); filter: brightness(0.95); }
+
+.btn-ghost {
+  background-color: transparent;
+  color: #C75D3D;
+  border: 2px solid #C75D3D;
+  border-radius: 12px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: "Inter", sans-serif;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background-color 150ms ease-out, transform 100ms ease-out;
+  text-decoration: none;
+}
+.btn-ghost:hover { background-color: #FDF1EB; }
+.btn-ghost:active { transform: scale(0.97); }
+
+.card {
+  background-color: #FFFFFF;
+  border-radius: 20px;
+  border: 1px solid #E8E3DC;
+  box-shadow: 0 4px 12px rgba(26,23,20,0.06), 0 1px 3px rgba(26,23,20,0.04);
+}
+
+/* ===================== ANIMATIONS ===================== */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes breathing {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+
+@keyframes confetti-fall {
+  0% { transform: translateY(-100px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(6px); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-12px); }
+}
+
+@keyframes scale-in {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, #E8E3DC 25%, #F5F1EA 50%, #E8E3DC 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.animate-breathing { animation: breathing 4s ease-in-out infinite; }
+.animate-float { animation: float 6s ease-in-out infinite; }
+.animate-shake { animation: shake 0.3s ease-in-out; }
+.animate-slide-up { animation: slide-up 250ms ease-out; }
+.animate-slide-in-right { animation: slide-in-right 200ms ease-out; }
+.animate-scale-in { animation: scale-in 250ms ease-out; }
+.animate-fade-in { animation: fade-in 200ms ease-out; }
+.animate-count-up { animation: count-up 600ms ease-out; }
+
+/* ===================== SCROLL BEHAVIOR ===================== */
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ===================== SAFE AREA ===================== */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 16px); }
+.pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+
+/* ===================== TOAST ===================== */
+.toast-container {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  pointer-events: none;
+}
+
+.toast {
+  background: #1A1714;
+  color: #F5F1EA;
+  border-radius: 12px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 12px 32px rgba(26,23,20,0.08);
+  pointer-events: all;
+  min-width: 280px;
+  max-width: 360px;
+}
+
+.toast-moss { border-left: 4px solid #5C8A3A; }
+.toast-honey { border-left: 4px solid #D4923B; }
+.toast-brick { border-left: 4px solid #B8442E; }
