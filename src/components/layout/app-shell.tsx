@@ -5,9 +5,10 @@ import { BottomNav } from '@/components/layout/bottom-nav';
 
 interface AppShellProps {
   children: React.ReactNode;
+  title?: string;
 }
 
-export function AppShell({ children }: AppShellProps) {
+export function AppShell({ children, title }: AppShellProps) {
   return (
     <div
       className="min-h-screen"
@@ -15,13 +16,16 @@ export function AppShell({ children }: AppShellProps) {
     >
       <TopBar />
 
+      {title && (
+        <div style={{ padding: '16px 16px 0', maxWidth: 768, margin: '0 auto' }}>
+          <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: 28, fontWeight: 500, color: '#1A1714', margin: 0 }}>{title}</h1>
+        </div>
+      )}
+
       {/* Main content area */}
       <main
         className="mx-auto w-full max-w-3xl"
-        style={{
-          /* pb-20 (80px) so content clears the 64px bottom nav with some breathing room */
-          paddingBottom: '80px',
-        }}
+        style={{ paddingBottom: '80px' }}
       >
         {children}
       </main>

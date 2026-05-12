@@ -25,43 +25,45 @@ export function BottomNav() {
 
   return (
     <nav
-      className="md:hidden fixed bottom-0 inset-x-0 z-50 flex items-stretch"
+      className="fixed bottom-0 inset-x-0 z-50"
       style={{
         height: '64px',
         backgroundColor: '#FFFFFF',
         borderTop: '1px solid #E8E3DC',
       }}
     >
-      {tabs.map(({ label, icon: Icon, href, match }) => {
-        const isActive = pathname === match || pathname.startsWith(match + '/');
-        return (
-          <Link
-            key={href}
-            href={href}
-            className="flex flex-1 flex-col items-center justify-center gap-0.5"
-            aria-current={isActive ? 'page' : undefined}
-          >
-            <Icon
-              size={20}
-              style={{
-                color: isActive ? '#C75D3D' : '#A8A099',
-                transition: 'color 200ms ease',
-              }}
-              strokeWidth={isActive ? 2.5 : 1.75}
-            />
-            <span
-              className="text-tiny font-medium leading-none"
-              style={{
-                fontSize: '12px',
-                color: isActive ? '#C75D3D' : '#A8A099',
-                transition: 'color 200ms ease',
-              }}
+      <div className="mx-auto max-w-3xl flex items-stretch h-full">
+        {tabs.map(({ label, icon: Icon, href, match }) => {
+          const isActive = pathname === match || pathname.startsWith(match + '/');
+          return (
+            <Link
+              key={href}
+              href={href}
+              className="flex flex-1 flex-col items-center justify-center gap-0.5"
+              aria-current={isActive ? 'page' : undefined}
             >
-              {label}
-            </span>
-          </Link>
-        );
-      })}
+              <Icon
+                size={20}
+                style={{
+                  color: isActive ? '#C75D3D' : '#A8A099',
+                  transition: 'color 200ms ease',
+                }}
+                strokeWidth={isActive ? 2.5 : 1.75}
+              />
+              <span
+                className="text-tiny font-medium leading-none"
+                style={{
+                  fontSize: '12px',
+                  color: isActive ? '#C75D3D' : '#A8A099',
+                  transition: 'color 200ms ease',
+                }}
+              >
+                {label}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
     </nav>
   );
 }

@@ -27,6 +27,8 @@ const C = {
   mossBg: '#EEF4E5',
 };
 
+const navLinkStyle: React.CSSProperties = { color: C.stone, textDecoration: 'none', fontSize: 15, fontWeight: 500 };
+
 function Wordmark() {
   return (
     <span style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, color: C.primary, fontSize: 24, letterSpacing: '-0.01em' }}>
@@ -129,7 +131,8 @@ export default function LandingPage() {
       <nav style={{ background: C.white, borderBottom: `1px solid ${C.linen}`, padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
         <Wordmark />
         <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-          <Link href="#pricing" style={{ color: C.stone, textDecoration: 'none', fontSize: 15, fontWeight: 500 }}>Pricing</Link>
+          <Link href="#pricing" style={navLinkStyle}>Pricing</Link>
+          <Link href="/dashboard" style={navLinkStyle}>See demo →</Link>
           <Link href="/onboarding" style={{ background: C.primary, color: C.white, borderRadius: 10, padding: '9px 20px', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
             Start free
           </Link>
