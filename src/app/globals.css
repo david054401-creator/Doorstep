@@ -52,9 +52,11 @@
   --radius-pill: 9999px;
 
   /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(26,23,20,0.04);
-  --shadow-md: 0 4px 12px rgba(26,23,20,0.06), 0 1px 3px rgba(26,23,20,0.04);
-  --shadow-lg: 0 12px 32px rgba(26,23,20,0.08), 0 4px 8px rgba(26,23,20,0.04);
+  --shadow-sm: 0 1px 3px rgba(26,23,20,0.06);
+  --shadow-md: 0 2px 10px rgba(26,23,20,0.07), 0 1px 3px rgba(26,23,20,0.04);
+  --shadow-lg: 0 8px 28px rgba(26,23,20,0.10), 0 2px 8px rgba(26,23,20,0.05);
+  --shadow-xl: 0 16px 48px rgba(26,23,20,0.12), 0 4px 12px rgba(26,23,20,0.06);
+  --shadow-hearth: 0 4px 18px rgba(199,93,61,0.22), 0 1px 4px rgba(199,93,61,0.12);
 }
 
 /* ===================== GOOGLE FONTS IMPORT (hoisted to top of file) ===================== */
@@ -138,7 +140,26 @@ body {
   background-color: #FFFFFF;
   border-radius: 20px;
   border: 1px solid #E8E3DC;
-  box-shadow: 0 4px 12px rgba(26,23,20,0.06), 0 1px 3px rgba(26,23,20,0.04);
+  box-shadow: 0 2px 10px rgba(26,23,20,0.07), 0 1px 3px rgba(26,23,20,0.04);
+}
+
+.card-hearth {
+  background: linear-gradient(145deg, #FEF7F4 0%, #FFFCFA 45%, #FFFFFF 100%);
+  border-radius: 20px;
+  border: 1px solid rgba(199,93,61,0.18);
+  box-shadow: 0 2px 16px rgba(199,93,61,0.08), 0 1px 4px rgba(26,23,20,0.04);
+}
+
+/* ─── Focus ring ─── */
+:focus-visible {
+  outline: 2px solid #C75D3D;
+  outline-offset: 2px;
+}
+
+/* ─── Input focus ─── */
+input:focus, select:focus, textarea:focus {
+  border-color: #C75D3D !important;
+  box-shadow: 0 0 0 3px rgba(199,93,61,0.12);
 }
 
 /* ===================== ANIMATIONS ===================== */

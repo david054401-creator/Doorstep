@@ -2,19 +2,19 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Bell, ChevronDown, User } from 'lucide-react';
-import { usePropertyStore } from '@/store/property-store';
+import { useStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 
 export function TopBar() {
-  const { properties, selectedPropertyId, hasNotifications, setSelectedPropertyId } =
-    usePropertyStore();
+  const { properties, selectedPropertyId, setSelectedProperty, messages } = useStore();
+
+  const hasNotification = messages.some((m) => !m.read && m.sender === 'tenant');
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const selectedProperty = properties.find((p) => p.id === selectedPropertyId) ?? properties[0];
 
-  // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -102,7 +102,7 @@ export function TopBar() {
                       role="option"
                       aria-selected={isSelected}
                       onClick={() => {
-                        setSelectedPropertyId(prop.id);
+                        setSelectedProperty(prop.id);
                         setDropdownOpen(false);
                       }}
                       className="w-full px-4 py-3 text-left text-sm transition-colors hover:bg-[#FDF1EB]"
@@ -135,7 +135,7 @@ export function TopBar() {
             aria-label="Notifications"
           >
             <Bell size={20} style={{ color: '#3D362F' }} />
-            {hasNotifications && (
+            {hasNotification && (
               <span
                 className="absolute right-1.5 top-1.5 block rounded-full"
                 style={{
