@@ -6,7 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   CheckCircle2, ChevronDown, ChevronUp, Star,
   DollarSign, FileText, Wrench, Bell, Shield, ArrowRight,
-  Building2, MessageSquare, BarChart3, Camera
+  Building2, MessageSquare, BarChart3, Camera, TrendingUp,
+  ArrowDownToLine, Receipt, BadgeCheck,
 } from 'lucide-react';
 
 /* ─── Brand tokens ─── */
@@ -25,6 +26,8 @@ const C = {
   white: '#FFFFFF',
   moss: '#5C8A3A',
   mossBg: '#EEF4E5',
+  honey: '#D4923B',
+  sky: '#4A7C9E',
 };
 
 const navLinkStyle: React.CSSProperties = { color: C.stone, textDecoration: 'none', fontSize: 15, fontWeight: 500 };
@@ -74,42 +77,68 @@ const testimonials = [
 
 function PhoneMockup() {
   return (
-    <div style={{ position: 'relative', width: 260, margin: '0 auto' }}>
-      <div style={{ background: C.ink, borderRadius: 40, padding: '12px 8px', boxShadow: '0 24px 64px rgba(26,23,20,0.18), 0 8px 24px rgba(26,23,20,0.1)' }}>
-        <div style={{ background: C.cream, borderRadius: 32, overflow: 'hidden' }}>
-          <div style={{ background: C.white, padding: '8px 20px 4px', display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 600, color: C.ink }}>
-            <span>9:41</span><span>5G ▮</span>
+    <div style={{ position: 'relative', width: 270, margin: '0 auto' }}>
+      {/* Glow behind phone */}
+      <div style={{
+        position: 'absolute', top: '10%', left: '10%', right: '10%', bottom: '5%',
+        borderRadius: 40, background: C.primary100, filter: 'blur(32px)', opacity: 0.6, zIndex: 0,
+      }} />
+      <div style={{ background: '#1A1714', borderRadius: 44, padding: '14px 10px', boxShadow: '0 32px 80px rgba(26,23,20,0.22), 0 8px 24px rgba(26,23,20,0.12)', position: 'relative', zIndex: 1 }}>
+        {/* Notch */}
+        <div style={{ position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)', width: 100, height: 28, background: '#1A1714', borderRadius: 14, zIndex: 2 }} />
+        <div style={{ background: C.cream, borderRadius: 34, overflow: 'hidden' }}>
+          {/* Status bar */}
+          <div style={{ background: C.white, padding: '28px 20px 6px', display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 700, color: C.ink }}>
+            <span>9:41</span><span>◼◼◼</span>
           </div>
-          <div style={{ background: C.white, padding: '8px 16px 12px', borderBottom: `1px solid ${C.linen}` }}>
-            <span style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, color: C.primary, fontSize: 18 }}>Doorstep</span>
+          {/* Top bar */}
+          <div style={{ background: C.white, padding: '8px 16px 12px', borderBottom: `1px solid ${C.linen}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, color: C.primary, fontSize: 19 }}>Doorstep</span>
+            <div style={{ width: 30, height: 30, borderRadius: '50%', background: C.primary100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 14, height: 14, borderRadius: '50%', background: C.primary }} />
+            </div>
           </div>
-          <div style={{ background: C.white, margin: 12, borderRadius: 16, border: `1px solid ${C.linen}`, padding: 16 }}>
-            <div style={{ fontSize: 11, color: C.stone, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>COMING IN THIS MONTH</div>
-            <div style={{ fontFamily: 'Fraunces, serif', fontSize: 32, fontWeight: 500, color: C.ink, lineHeight: 1 }}>$2,400</div>
-            <div style={{ fontSize: 12, color: C.stone, marginTop: 4 }}>$1,800 received · $600 due</div>
-            <div style={{ marginTop: 8, background: C.mossBg, color: C.moss, borderRadius: 999, padding: '3px 10px', fontSize: 11, fontWeight: 600, display: 'inline-block' }}>On track ✓</div>
+          {/* Hero card */}
+          <div style={{ background: 'linear-gradient(145deg, #FEF7F4, #fff)', margin: '10px 10px 0', borderRadius: 14, border: `1px solid rgba(199,93,61,0.2)`, padding: '14px 14px 12px' }}>
+            <div style={{ fontSize: 9, color: C.primary, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Coming in this month</div>
+            <div style={{ fontFamily: 'Fraunces, serif', fontSize: 30, fontWeight: 500, color: C.ink, lineHeight: 1, marginBottom: 10 }}>$2,400</div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{ background: C.mossBg, borderRadius: 6, padding: '3px 8px', fontSize: 9, fontWeight: 600, color: C.moss }}>$1,800 received</div>
+              <div style={{ background: '#FBF1E0', borderRadius: 6, padding: '3px 8px', fontSize: 9, fontWeight: 600, color: C.honey }}>$600 due</div>
+            </div>
           </div>
-          <div style={{ padding: '0 12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
-            {[['📥', 'Record payment'], ['💸', 'Log expense'], ['🔧', 'Maintenance'], ['📋', 'Message']].map(([icon, label]) => (
-              <div key={label} style={{ background: C.white, borderRadius: 12, padding: '10px 8px', border: `1px solid ${C.linen}`, textAlign: 'center' }}>
-                <div style={{ fontSize: 18 }}>{icon}</div>
-                <div style={{ fontSize: 10, color: C.charcoal, fontWeight: 500, marginTop: 2 }}>{label}</div>
+          {/* Quick actions grid */}
+          <div style={{ padding: '10px 10px 0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
+            {[
+              { icon: ArrowDownToLine, bg: C.mossBg, color: C.moss, label: 'Record payment' },
+              { icon: Receipt, bg: '#FBF1E0', color: C.honey, label: 'Log expense' },
+              { icon: Wrench, bg: '#FAE5DE', color: '#B8442E', label: 'Maintenance' },
+              { icon: MessageSquare, bg: '#E5EEF5', color: C.sky, label: 'Message' },
+            ].map(({ icon: Icon, bg, color, label }) => (
+              <div key={label} style={{ background: C.white, borderRadius: 10, padding: '9px 10px', border: `1px solid ${C.linen}`, display: 'flex', alignItems: 'center', gap: 7 }}>
+                <div style={{ width: 26, height: 26, borderRadius: 7, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon size={13} color={color} strokeWidth={1.75} />
+                </div>
+                <div style={{ fontSize: 9, color: C.ink, fontWeight: 600 }}>{label}</div>
               </div>
             ))}
           </div>
-          <div style={{ padding: '0 12px 16px' }}>
-            <div style={{ fontFamily: 'Fraunces, serif', fontSize: 14, fontWeight: 500, color: C.ink, marginBottom: 8 }}>What&apos;s happening</div>
+          {/* Activity */}
+          <div style={{ padding: '0 10px 14px' }}>
+            <div style={{ fontFamily: 'Fraunces, serif', fontSize: 12, fontWeight: 500, color: C.ink, marginBottom: 6 }}>What&apos;s happening</div>
             {[
-              { dot: C.moss, text: 'Sarah paid March rent', sub: '2h ago', amt: '+$1,200' },
-              { dot: '#D4923B', text: 'Leaky faucet request', sub: 'yesterday', amt: 'Open' },
+              { border: C.moss, icon: DollarSign, bg: C.mossBg, color: C.moss, text: 'Sarah paid March rent', sub: '2h ago', right: '+$1,200', rightColor: C.moss },
+              { border: C.honey, icon: Wrench, bg: '#FBF1E0', color: C.honey, text: 'Leaky faucet request', sub: 'yesterday', right: 'Open', rightColor: C.honey },
             ].map(item => (
-              <div key={item.text} style={{ background: C.white, borderRadius: 10, padding: '8px 10px', marginBottom: 6, border: `1px solid ${C.linen}`, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: item.dot, flexShrink: 0 }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: C.ink }}>{item.text}</div>
-                  <div style={{ fontSize: 10, color: C.stone }}>{item.sub}</div>
+              <div key={item.text} style={{ background: C.white, borderRadius: 9, padding: '8px 10px', marginBottom: 5, border: `1px solid ${C.linen}`, borderLeft: `3px solid ${item.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 24, height: 24, borderRadius: '50%', background: item.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <item.icon size={11} color={item.color} strokeWidth={2} />
                 </div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: C.charcoal }}>{item.amt}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: C.ink }}>{item.text}</div>
+                  <div style={{ fontSize: 9, color: C.stone }}>{item.sub}</div>
+                </div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: item.rightColor }}>{item.right}</div>
               </div>
             ))}
           </div>
@@ -127,123 +156,181 @@ export default function LandingPage() {
   return (
     <div style={{ fontFamily: 'Inter, sans-serif', background: C.cream, color: C.ink, overflowX: 'hidden' }}>
 
-      {/* NAV */}
-      <nav style={{ background: C.white, borderBottom: `1px solid ${C.linen}`, padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
+      {/* ─── NAV ─── */}
+      <nav style={{
+        background: 'rgba(255,255,255,0.9)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        borderBottom: `1px solid ${C.linen}`,
+        padding: '0 24px', height: 64,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        position: 'sticky', top: 0, zIndex: 100,
+      }}>
         <Wordmark />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
           <Link href="#pricing" style={navLinkStyle}>Pricing</Link>
           <Link href="/dashboard" style={navLinkStyle}>See demo →</Link>
-          <Link href="/onboarding" style={{ background: C.primary, color: C.white, borderRadius: 10, padding: '9px 20px', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
+          <Link href="/onboarding" style={{
+            background: C.primary, color: C.white,
+            borderRadius: 10, padding: '9px 20px',
+            fontSize: 14, fontWeight: 600, textDecoration: 'none',
+            boxShadow: '0 2px 8px rgba(199,93,61,0.3)',
+            transition: 'background 150ms',
+          }}>
             Start free
           </Link>
         </div>
       </nav>
 
-      {/* HERO */}
-      <section style={{ background: C.cream, padding: '80px 24px 64px', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: -80, right: -80, width: 400, height: 400, borderRadius: '50%', background: C.primary100, opacity: 0.5, filter: 'blur(60px)', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', bottom: -40, left: -60, width: 300, height: 300, borderRadius: '50%', background: C.primary50, opacity: 0.8, filter: 'blur(40px)', pointerEvents: 'none' }} />
-        <div style={{ maxWidth: 1100, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 48, alignItems: 'center', position: 'relative' }}>
-          <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: 'easeOut' }}>
-            <h1 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 'clamp(36px, 6vw, 56px)', lineHeight: 1.1, color: C.ink, marginBottom: 20, letterSpacing: '-0.02em' }}>
+      {/* ─── HERO ─── */}
+      <section style={{ background: C.cream, padding: '88px 24px 72px', position: 'relative', overflow: 'hidden' }}>
+        {/* Background blobs */}
+        <div style={{ position: 'absolute', top: -100, right: -100, width: 500, height: 500, borderRadius: '50%', background: C.primary100, opacity: 0.45, filter: 'blur(80px)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: -60, left: -80, width: 360, height: 360, borderRadius: '50%', background: C.primary50, opacity: 0.7, filter: 'blur(60px)', pointerEvents: 'none' }} />
+
+        <div style={{ maxWidth: 1100, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 56, alignItems: 'center', position: 'relative' }}>
+          <motion.div initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, ease: 'easeOut' }}>
+            {/* Pill badge */}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: C.primary50, borderRadius: 999, padding: '6px 14px', marginBottom: 24, border: `1px solid rgba(199,93,61,0.2)` }}>
+              <BadgeCheck size={14} color={C.primary} strokeWidth={2.5} />
+              <span style={{ fontSize: 13, fontWeight: 600, color: C.primary }}>12,000+ landlords trust Doorstep</span>
+            </div>
+
+            <h1 style={{
+              fontFamily: 'Fraunces, serif', fontWeight: 500,
+              fontSize: 'clamp(38px, 6vw, 60px)', lineHeight: 1.08,
+              color: C.ink, marginBottom: 20, letterSpacing: '-0.025em',
+            }}>
               Renting out a place?<br />
               <span style={{ color: C.primary }}>We handle the boring parts.</span>
             </h1>
-            <p style={{ fontSize: 18, lineHeight: '28px', color: C.charcoal, marginBottom: 32, maxWidth: 480 }}>
+
+            <p style={{ fontSize: 18, lineHeight: '30px', color: C.charcoal, marginBottom: 36, maxWidth: 480 }}>
               Doorstep collects rent, tracks expenses, and gets you ready for taxes. No spreadsheets. No headaches.
             </p>
+
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
               <input
                 type="email"
                 placeholder="Your email address"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                style={{ flex: 1, minWidth: 220, background: C.white, border: `1.5px solid ${C.linen}`, borderRadius: 12, padding: '14px 16px', fontSize: 16, color: C.ink, outline: 'none', fontFamily: 'Inter, sans-serif' }}
+                style={{
+                  flex: 1, minWidth: 220,
+                  background: C.white, border: `1.5px solid ${C.linen}`,
+                  borderRadius: 12, padding: '15px 16px',
+                  fontSize: 16, color: C.ink, outline: 'none',
+                  fontFamily: 'Inter, sans-serif',
+                  boxShadow: '0 1px 4px rgba(26,23,20,0.06)',
+                }}
               />
-              <Link href="/onboarding" style={{ background: C.primary, color: C.white, borderRadius: 12, padding: '14px 28px', fontSize: 16, fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <Link href="/onboarding" style={{
+                background: C.primary, color: C.white,
+                borderRadius: 12, padding: '15px 28px',
+                fontSize: 16, fontWeight: 600, textDecoration: 'none',
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                boxShadow: '0 4px 16px rgba(199,93,61,0.32)',
+              }}>
                 Start free <ArrowRight size={16} />
               </Link>
             </div>
+
             <p style={{ fontSize: 14, color: C.stone }}>No credit card needed · Free forever for 1 property</p>
-            <div style={{ marginTop: 32, display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+
+            <div style={{ marginTop: 36, display: 'flex', alignItems: 'center', gap: 28, flexWrap: 'wrap' }}>
               {[
-                { icon: <Shield size={16} color={C.moss} />, text: 'Bank-level encryption' },
-                { icon: <Star size={16} color="#D4923B" fill="#D4923B" />, text: '4.9★ on App Store' },
-                { icon: <CheckCircle2 size={16} color={C.moss} />, text: '12,000+ landlords' },
+                { icon: <Shield size={15} color={C.moss} />, text: 'Bank-level encryption' },
+                { icon: <Star size={15} color={C.honey} fill={C.honey} />, text: '4.9★ on App Store' },
+                { icon: <TrendingUp size={15} color={C.moss} />, text: '12,000+ landlords' },
               ].map(t => (
-                <div key={t.text} style={{ display: 'flex', alignItems: 'center', gap: 6, color: C.stone, fontSize: 14 }}>
+                <div key={t.text} style={{ display: 'flex', alignItems: 'center', gap: 7, color: C.stone, fontSize: 14 }}>
                   {t.icon}<span>{t.text}</span>
                 </div>
               ))}
             </div>
           </motion.div>
-          <motion.div initial={{ opacity: 0, y: 32 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.2 }} className="animate-float" style={{ display: 'flex', justifyContent: 'center' }}>
+
+          <motion.div
+            initial={{ opacity: 0, y: 36 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.85, delay: 0.18 }}
+            className="animate-float"
+            style={{ display: 'flex', justifyContent: 'center' }}
+          >
             <PhoneMockup />
           </motion.div>
         </div>
       </section>
 
-      {/* PROBLEM */}
-      <section style={{ background: C.white, padding: '80px 24px' }}>
+      {/* ─── PROBLEM ─── */}
+      <section style={{ background: C.white, padding: '88px 24px' }}>
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
-          <motion.h2 initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }}
-            style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 'clamp(28px, 4vw, 40px)', color: C.ink, textAlign: 'center', marginBottom: 48 }}>
-            If this sounds like you...
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }}
+            style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 'clamp(28px, 4vw, 42px)', color: C.ink, textAlign: 'center', marginBottom: 56, letterSpacing: '-0.02em' }}
+          >
+            If this sounds familiar…
           </motion.h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 24 }}>
             {[
-              { icon: MessageSquare, color: '#FBF1E0', iconColor: '#D4923B', title: 'You text your tenant for rent every month', desc: "You send the same 'Hey, rent is due...' text on the 1st. Sometimes they forget. Sometimes you forget." },
-              { icon: Camera, color: C.primary50, iconColor: C.primary, title: 'Your receipts live in a shoebox', desc: "Repairs, insurance, supplies — it's all in a pile somewhere. Tax time is a nightmare of digging through emails." },
-              { icon: FileText, color: '#EEF4E5', iconColor: C.moss, title: 'Tax time gives you nightmares', desc: "Every April you scramble to figure out what you spent and what you made. Your accountant charges you extra." },
+              { icon: MessageSquare, bg: '#FBF1E0', iconColor: C.honey, title: 'You text your tenant for rent every month', desc: "You send the same 'Hey, rent is due...' text on the 1st. Sometimes they forget. Sometimes you forget." },
+              { icon: Camera, bg: C.primary50, iconColor: C.primary, title: 'Your receipts live in a shoebox', desc: "Repairs, insurance, supplies — it's all in a pile somewhere. Tax time is a nightmare of digging through emails." },
+              { icon: FileText, bg: C.mossBg, iconColor: C.moss, title: 'Tax time gives you nightmares', desc: "Every April you scramble to figure out what you spent and what you made. Your accountant charges you extra." },
             ].map((item, i) => (
-              <motion.div key={item.title} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: i * 0.1 }}
-                style={{ background: item.color, borderRadius: 20, padding: '28px 24px', border: `1px solid ${C.linen}` }}>
-                <div style={{ width: 48, height: 48, borderRadius: 12, background: C.white, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <motion.div
+                key={item.title}
+                initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: i * 0.1 }}
+                style={{ background: item.bg, borderRadius: 20, padding: '28px 24px', border: `1px solid ${C.linen}` }}
+              >
+                <div style={{ width: 52, height: 52, borderRadius: 14, background: C.white, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18, boxShadow: '0 2px 8px rgba(26,23,20,0.08)' }}>
                   <item.icon size={24} color={item.iconColor} strokeWidth={1.75} />
                 </div>
-                <h3 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 20, color: C.ink, marginBottom: 8, lineHeight: '28px' }}>{item.title}</h3>
-                <p style={{ fontSize: 15, color: C.stone, lineHeight: '22px' }}>{item.desc}</p>
+                <h3 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 20, color: C.ink, marginBottom: 10, lineHeight: '28px' }}>{item.title}</h3>
+                <p style={{ fontSize: 15, color: C.stone, lineHeight: '24px', margin: 0 }}>{item.desc}</p>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* SOLUTION */}
-      <section style={{ background: C.cream, padding: '80px 24px' }}>
+      {/* ─── SOLUTION ─── */}
+      <section style={{ background: C.cream, padding: '88px 24px' }}>
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }}>
-            <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 'clamp(28px, 4vw, 40px)', color: C.ink, textAlign: 'center', marginBottom: 12 }}>
+            <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 'clamp(28px, 4vw, 42px)', color: C.ink, textAlign: 'center', marginBottom: 14, letterSpacing: '-0.02em' }}>
               Here&apos;s what changes with Doorstep
             </h2>
-            <p style={{ textAlign: 'center', color: C.stone, fontSize: 18, marginBottom: 56, maxWidth: 560, margin: '0 auto 56px' }}>
+            <p style={{ textAlign: 'center', color: C.stone, fontSize: 18, marginBottom: 56, maxWidth: 540, margin: '0 auto 56px' }}>
               Four things. That&apos;s it. These four things will change how your rental business works.
             </p>
           </motion.div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20 }}>
             {[
-              { icon: DollarSign, title: 'Rent collects itself', desc: "We text your tenants on rent day. They pay. You get notified. Money in your account in 2 days. No chasing.", color: '#EEF4E5', iconColor: C.moss },
-              { icon: Camera, title: 'Snap a receipt, done', desc: "Take a photo of any receipt. We read it, categorize it, and file it. Your shoebox is officially retired.", color: C.primary50, iconColor: C.primary },
-              { icon: BarChart3, title: 'Tax time is easy', desc: "Everything you need for Schedule E is waiting in Doorstep at the end of the year. Pre-organized, ready to hand over.", color: '#E5EEF5', iconColor: '#4A7C9E' },
-              { icon: Wrench, title: 'Maintenance tracked', desc: "Tenants submit requests with photos. You assign vendors. Everything is logged. No more 'I told you last Tuesday.'", color: '#FBF1E0', iconColor: '#D4923B' },
+              { icon: DollarSign, title: 'Rent collects itself', desc: "We text your tenants on rent day. They pay. You get notified. Money in your account in 2 days. No chasing.", bg: C.mossBg, iconColor: C.moss },
+              { icon: Camera, title: 'Snap a receipt, done', desc: "Take a photo of any receipt. We read it, categorize it, and file it. Your shoebox is officially retired.", bg: C.primary50, iconColor: C.primary },
+              { icon: BarChart3, title: 'Tax time is easy', desc: "Everything you need for Schedule E is waiting in Doorstep at the end of the year. Pre-organized, ready to hand over.", bg: '#E5EEF5', iconColor: C.sky },
+              { icon: Wrench, title: 'Maintenance tracked', desc: "Tenants submit requests with photos. You assign vendors. Everything is logged. No more 'I told you last Tuesday.'", bg: '#FBF1E0', iconColor: C.honey },
             ].map((item, i) => (
-              <motion.div key={item.title} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: i * 0.1 }}
-                style={{ background: C.white, borderRadius: 20, padding: '28px 24px', border: `1px solid ${C.linen}`, boxShadow: '0 4px 12px rgba(26,23,20,0.06)' }}>
-                <div style={{ width: 52, height: 52, borderRadius: 14, background: item.color, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                  <item.icon size={24} color={item.iconColor} strokeWidth={1.75} />
+              <motion.div
+                key={item.title}
+                initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: i * 0.1 }}
+                style={{ background: C.white, borderRadius: 20, padding: '28px 24px', border: `1px solid ${C.linen}`, boxShadow: '0 4px 16px rgba(26,23,20,0.06)' }}
+              >
+                <div style={{ width: 54, height: 54, borderRadius: 14, background: item.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
+                  <item.icon size={26} color={item.iconColor} strokeWidth={1.75} />
                 </div>
-                <h3 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 20, color: C.ink, marginBottom: 8 }}>{item.title}</h3>
-                <p style={{ fontSize: 15, color: C.stone, lineHeight: '22px' }}>{item.desc}</p>
+                <h3 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 20, color: C.ink, marginBottom: 10 }}>{item.title}</h3>
+                <p style={{ fontSize: 15, color: C.stone, lineHeight: '24px', margin: 0 }}>{item.desc}</p>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* HOW IT WORKS */}
-      <section style={{ background: C.white, padding: '80px 24px' }}>
+      {/* ─── HOW IT WORKS ─── */}
+      <section style={{ background: C.white, padding: '88px 24px' }}>
         <div style={{ maxWidth: 680, margin: '0 auto' }}>
-          <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 'clamp(28px, 4vw, 40px)', color: C.ink, textAlign: 'center', marginBottom: 48 }}>
+          <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 'clamp(28px, 4vw, 42px)', color: C.ink, textAlign: 'center', marginBottom: 56, letterSpacing: '-0.02em' }}>
             Set up in 4 minutes flat
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -253,15 +340,23 @@ export default function LandingPage() {
               { step: '3', title: 'We text your tenant', desc: "They get a payment link. They pay. You get notified." },
               { step: '4', title: 'Everything tracked automatically', desc: "Payments, expenses, maintenance — all organized for you." },
             ].map((item, i) => (
-              <motion.div key={item.step} initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: i * 0.1 }}
-                style={{ display: 'flex', gap: 20, paddingBottom: 32, position: 'relative' }}>
+              <motion.div
+                key={item.step}
+                initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: i * 0.1 }}
+                style={{ display: 'flex', gap: 20, paddingBottom: 36, position: 'relative' }}
+              >
                 {i < 3 && <div style={{ position: 'absolute', left: 20, top: 44, bottom: 0, width: 2, background: C.linen }} />}
-                <div style={{ width: 40, height: 40, borderRadius: '50%', background: C.primary, color: C.white, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 16, flexShrink: 0, zIndex: 1 }}>
+                <div style={{
+                  width: 40, height: 40, borderRadius: '50%', background: C.primary,
+                  color: C.white, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontWeight: 700, fontSize: 16, flexShrink: 0, zIndex: 1,
+                  boxShadow: '0 2px 8px rgba(199,93,61,0.3)',
+                }}>
                   {item.step}
                 </div>
                 <div style={{ paddingTop: 8 }}>
                   <h3 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 20, color: C.ink, marginBottom: 6 }}>{item.title}</h3>
-                  <p style={{ fontSize: 16, color: C.stone, lineHeight: '24px' }}>{item.desc}</p>
+                  <p style={{ fontSize: 16, color: C.stone, lineHeight: '26px', margin: 0 }}>{item.desc}</p>
                 </div>
               </motion.div>
             ))}
@@ -269,22 +364,27 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* TESTIMONIALS */}
-      <section style={{ background: C.cream, padding: '80px 24px' }}>
+      {/* ─── TESTIMONIALS ─── */}
+      <section style={{ background: C.cream, padding: '88px 24px' }}>
         <div style={{ maxWidth: 960, margin: '0 auto' }}>
-          <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 'clamp(28px, 4vw, 40px)', color: C.ink, textAlign: 'center', marginBottom: 48 }}>
+          <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 'clamp(28px, 4vw, 42px)', color: C.ink, textAlign: 'center', marginBottom: 56, letterSpacing: '-0.02em' }}>
             Real landlords. Real results.
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24 }}>
             {testimonials.map((t, i) => (
-              <motion.div key={t.name} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: i * 0.1 }}
-                style={{ background: C.white, borderRadius: 20, padding: '28px 24px', border: `1px solid ${C.linen}`, boxShadow: '0 4px 12px rgba(26,23,20,0.06)' }}>
-                <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
-                  {[1,2,3,4,5].map(s => <Star key={s} size={16} color="#D4923B" fill="#D4923B" />)}
+              <motion.div
+                key={t.name}
+                initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: i * 0.1 }}
+                style={{ background: C.white, borderRadius: 20, padding: '28px 24px', border: `1px solid ${C.linen}`, boxShadow: '0 4px 16px rgba(26,23,20,0.06)' }}
+              >
+                <div style={{ display: 'flex', gap: 4, marginBottom: 18 }}>
+                  {[1,2,3,4,5].map(s => <Star key={s} size={15} color={C.honey} fill={C.honey} />)}
                 </div>
-                <p style={{ fontSize: 16, color: C.charcoal, lineHeight: '26px', marginBottom: 20, fontStyle: 'italic' }}>&ldquo;{t.quote}&rdquo;</p>
+                <p style={{ fontSize: 16, color: C.charcoal, lineHeight: '28px', marginBottom: 24, fontStyle: 'italic' }}>
+                  &ldquo;{t.quote}&rdquo;
+                </p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ width: 44, height: 44, borderRadius: '50%', background: t.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, color: C.charcoal, fontSize: 14 }}>{t.initials}</div>
+                  <div style={{ width: 44, height: 44, borderRadius: '50%', background: t.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: C.charcoal, fontSize: 14 }}>{t.initials}</div>
                   <div>
                     <div style={{ fontWeight: 600, color: C.ink, fontSize: 15 }}>{t.name}</div>
                     <div style={{ fontSize: 13, color: C.stone }}>{t.location} · {t.units}</div>
@@ -296,41 +396,79 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* PRICING */}
-      <section id="pricing" style={{ background: C.white, padding: '80px 24px' }}>
+      {/* ─── PRICING ─── */}
+      <section id="pricing" style={{ background: C.white, padding: '88px 24px' }}>
         <div style={{ maxWidth: 960, margin: '0 auto' }}>
-          <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 'clamp(28px, 4vw, 40px)', color: C.ink, textAlign: 'center', marginBottom: 12 }}>Simple pricing</h2>
-          <p style={{ textAlign: 'center', color: C.stone, fontSize: 17, marginBottom: 32 }}>Start free. Pay only when you grow.</p>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 40 }}>
-            <span style={{ fontSize: 15, color: billingAnnual ? C.mist : C.ink, fontWeight: 500 }}>Monthly</span>
-            <button onClick={() => setBillingAnnual(b => !b)} style={{ width: 52, height: 28, borderRadius: 999, background: billingAnnual ? C.primary : C.linen, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 200ms' }}>
-              <div style={{ width: 22, height: 22, borderRadius: '50%', background: C.white, position: 'absolute', top: 3, left: billingAnnual ? 27 : 3, transition: 'left 200ms', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }} />
+          <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 'clamp(28px, 4vw, 42px)', color: C.ink, textAlign: 'center', marginBottom: 12, letterSpacing: '-0.02em' }}>
+            Simple pricing
+          </h2>
+          <p style={{ textAlign: 'center', color: C.stone, fontSize: 18, marginBottom: 36 }}>
+            Start free. Pay only when you grow.
+          </p>
+
+          {/* Billing toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginBottom: 44 }}>
+            <span style={{ fontSize: 15, color: billingAnnual ? C.mist : C.ink, fontWeight: billingAnnual ? 400 : 600, transition: 'color 200ms' }}>Monthly</span>
+            <button
+              onClick={() => setBillingAnnual(b => !b)}
+              style={{ width: 52, height: 28, borderRadius: 999, background: billingAnnual ? C.primary : C.linen, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 200ms' }}
+            >
+              <div style={{ width: 22, height: 22, borderRadius: '50%', background: C.white, position: 'absolute', top: 3, left: billingAnnual ? 27 : 3, transition: 'left 200ms', boxShadow: '0 1px 4px rgba(0,0,0,0.18)' }} />
             </button>
-            <span style={{ fontSize: 15, color: billingAnnual ? C.ink : C.mist, fontWeight: 500 }}>Annual <span style={{ background: C.mossBg, color: C.moss, borderRadius: 999, padding: '2px 8px', fontSize: 12, fontWeight: 600 }}>Save 20%</span></span>
+            <span style={{ fontSize: 15, color: billingAnnual ? C.ink : C.mist, fontWeight: billingAnnual ? 600 : 400, transition: 'color 200ms', display: 'flex', alignItems: 'center', gap: 8 }}>
+              Annual
+              <span style={{ background: C.mossBg, color: C.moss, borderRadius: 999, padding: '3px 10px', fontSize: 12, fontWeight: 700 }}>Save 20%</span>
+            </span>
           </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
             {plans.map((plan, i) => (
-              <motion.div key={plan.name} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: i * 0.1 }}
-                style={{ background: plan.popular ? C.primary : C.white, borderRadius: 20, padding: '28px 24px', border: plan.popular ? 'none' : `1px solid ${C.linen}`, boxShadow: plan.popular ? '0 12px 32px rgba(199,93,61,0.2)' : '0 4px 12px rgba(26,23,20,0.06)', position: 'relative' }}>
+              <motion.div
+                key={plan.name}
+                initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: i * 0.1 }}
+                style={{
+                  background: plan.popular ? C.primary : C.white,
+                  borderRadius: 22, padding: '32px 28px',
+                  border: plan.popular ? 'none' : `1px solid ${C.linen}`,
+                  boxShadow: plan.popular ? '0 16px 48px rgba(199,93,61,0.22)' : '0 4px 16px rgba(26,23,20,0.06)',
+                  position: 'relative',
+                  transform: plan.popular ? 'scale(1.03)' : 'scale(1)',
+                }}
+              >
                 {plan.popular && (
-                  <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: C.ink, color: C.white, borderRadius: 999, padding: '4px 14px', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>Most popular</div>
+                  <div style={{
+                    position: 'absolute', top: -13, left: '50%', transform: 'translateX(-50%)',
+                    background: C.ink, color: C.white, borderRadius: 999,
+                    padding: '4px 16px', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap',
+                    letterSpacing: '0.04em',
+                  }}>
+                    MOST POPULAR
+                  </div>
                 )}
-                <div style={{ fontSize: 14, fontWeight: 600, color: plan.popular ? 'rgba(255,255,255,0.7)' : C.stone, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{plan.name}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: plan.popular ? 'rgba(255,255,255,0.6)' : C.stone, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{plan.name}</div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 4 }}>
-                  <span style={{ fontFamily: 'Fraunces, serif', fontSize: 40, fontWeight: 500, color: plan.popular ? C.white : C.ink }}>
+                  <span style={{ fontFamily: 'Fraunces, serif', fontSize: 44, fontWeight: 500, color: plan.popular ? C.white : C.ink }}>
                     {plan.price === 0 ? 'Free' : `$${billingAnnual ? Math.round(plan.price * 0.8) : plan.price}`}
                   </span>
-                  {plan.price > 0 && <span style={{ fontSize: 14, color: plan.popular ? 'rgba(255,255,255,0.7)' : C.stone }}>{plan.unit}</span>}
+                  {plan.price > 0 && <span style={{ fontSize: 14, color: plan.popular ? 'rgba(255,255,255,0.6)' : C.stone }}>{plan.unit}</span>}
                 </div>
-                <div style={{ fontSize: 14, color: plan.popular ? 'rgba(255,255,255,0.7)' : C.stone, marginBottom: 24 }}>{plan.desc}</div>
-                <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 28px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ fontSize: 14, color: plan.popular ? 'rgba(255,255,255,0.65)' : C.stone, marginBottom: 28 }}>{plan.desc}</div>
+                <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {plan.features.map(f => (
                     <li key={f} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 14, color: plan.popular ? 'rgba(255,255,255,0.9)' : C.charcoal }}>
-                      <CheckCircle2 size={16} color={plan.popular ? 'rgba(255,255,255,0.7)' : C.moss} strokeWidth={2} style={{ flexShrink: 0, marginTop: 2 }} />{f}
+                      <CheckCircle2 size={16} color={plan.popular ? 'rgba(255,255,255,0.7)' : C.moss} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} />
+                      {f}
                     </li>
                   ))}
                 </ul>
-                <Link href="/onboarding" style={{ display: 'block', textAlign: 'center', padding: '13px 24px', borderRadius: 12, fontWeight: 600, fontSize: 15, textDecoration: 'none', background: plan.popular ? C.white : C.primary, color: plan.popular ? C.primary : C.white }}>
+                <Link href="/onboarding" style={{
+                  display: 'block', textAlign: 'center',
+                  padding: '14px 24px', borderRadius: 12,
+                  fontWeight: 700, fontSize: 15, textDecoration: 'none',
+                  background: plan.popular ? C.white : C.primary,
+                  color: plan.popular ? C.primary : C.white,
+                  boxShadow: plan.popular ? '0 2px 12px rgba(0,0,0,0.1)' : '0 2px 8px rgba(199,93,61,0.2)',
+                }}>
                   {plan.cta}
                 </Link>
               </motion.div>
@@ -339,24 +477,29 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* FAQ */}
-      <section style={{ background: C.cream, padding: '80px 24px' }}>
+      {/* ─── FAQ ─── */}
+      <section style={{ background: C.cream, padding: '88px 24px' }}>
         <div style={{ maxWidth: 680, margin: '0 auto' }}>
-          <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 'clamp(28px, 4vw, 36px)', color: C.ink, textAlign: 'center', marginBottom: 48 }}>
+          <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 'clamp(28px, 4vw, 38px)', color: C.ink, textAlign: 'center', marginBottom: 56, letterSpacing: '-0.02em' }}>
             Questions? We&apos;ve got answers.
           </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {faqs.map((faq, i) => (
-              <div key={i} style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.linen}`, overflow: 'hidden' }}>
-                <button onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  style={{ width: '100%', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'transparent', border: 'none', cursor: 'pointer', gap: 16, textAlign: 'left' }}>
+              <div key={i} style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.linen}`, overflow: 'hidden', boxShadow: '0 1px 4px rgba(26,23,20,0.04)' }}>
+                <button
+                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                  style={{ width: '100%', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'transparent', border: 'none', cursor: 'pointer', gap: 16, textAlign: 'left' }}
+                >
                   <span style={{ fontWeight: 600, color: C.ink, fontSize: 16, lineHeight: '24px' }}>{faq.q}</span>
-                  {openFaq === i ? <ChevronUp size={20} color={C.primary} /> : <ChevronDown size={20} color={C.stone} />}
+                  {openFaq === i
+                    ? <ChevronUp size={20} color={C.primary} style={{ flexShrink: 0 }} />
+                    : <ChevronDown size={20} color={C.stone} style={{ flexShrink: 0 }} />
+                  }
                 </button>
                 <AnimatePresence>
                   {openFaq === i && (
-                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} style={{ overflow: 'hidden' }}>
-                      <div style={{ padding: '16px 24px 20px', fontSize: 16, color: C.stone, lineHeight: '26px', borderTop: `1px solid ${C.linen}` }}>{faq.a}</div>
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.22 }} style={{ overflow: 'hidden' }}>
+                      <div style={{ padding: '0 24px 20px', fontSize: 16, color: C.stone, lineHeight: '28px', borderTop: `1px solid ${C.linen}`, paddingTop: 16 }}>{faq.a}</div>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -366,30 +509,38 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section style={{ background: C.primary, padding: '80px 24px', textAlign: 'center' }}>
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }}>
-          <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 'clamp(28px, 4vw, 44px)', color: C.white, marginBottom: 16 }}>
+      {/* ─── CTA ─── */}
+      <section style={{ background: C.primary, padding: '96px 24px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: -80, right: -80, width: 400, height: 400, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: -60, left: -60, width: 300, height: 300, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', pointerEvents: 'none' }} />
+        <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }} style={{ position: 'relative' }}>
+          <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 'clamp(30px, 4vw, 48px)', color: C.white, marginBottom: 18, letterSpacing: '-0.025em' }}>
             Ready to stop chasing rent?
           </h2>
-          <p style={{ fontSize: 18, color: 'rgba(255,255,255,0.8)', marginBottom: 40, maxWidth: 480, margin: '0 auto 40px' }}>
+          <p style={{ fontSize: 18, color: 'rgba(255,255,255,0.78)', marginBottom: 44, maxWidth: 480, margin: '0 auto 44px' }}>
             Join 12,000+ landlords who run their rentals with Doorstep. Takes 4 minutes to get started.
           </p>
-          <Link href="/onboarding" style={{ background: C.white, color: C.primary, borderRadius: 12, padding: '16px 36px', fontSize: 18, fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            Start free — no credit card <ArrowRight size={18} />
+          <Link href="/onboarding" style={{
+            background: C.white, color: C.primary,
+            borderRadius: 14, padding: '18px 40px',
+            fontSize: 18, fontWeight: 700, textDecoration: 'none',
+            display: 'inline-flex', alignItems: 'center', gap: 10,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+          }}>
+            Start free — no credit card <ArrowRight size={20} />
           </Link>
         </motion.div>
       </section>
 
-      {/* FOOTER */}
-      <footer style={{ background: C.ink, color: 'rgba(255,255,255,0.6)', padding: '48px 24px 32px' }}>
+      {/* ─── FOOTER ─── */}
+      <footer style={{ background: C.ink, color: 'rgba(255,255,255,0.55)', padding: '56px 24px 32px' }}>
         <div style={{ maxWidth: 960, margin: '0 auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 32, marginBottom: 40 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 32, marginBottom: 48 }}>
             <div>
-              <span style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, color: C.white, fontSize: 22 }}>Doorstep</span>
-              <p style={{ fontSize: 14, marginTop: 8, maxWidth: 260, lineHeight: '22px' }}>Run your rentals like a pro. Without becoming one.</p>
+              <span style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, color: C.white, fontSize: 24 }}>Doorstep</span>
+              <p style={{ fontSize: 14, marginTop: 10, maxWidth: 260, lineHeight: '24px' }}>Run your rentals like a pro. Without becoming one.</p>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 48px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 56px' }}>
               {[
                 { label: 'Product', links: ['Features', 'Pricing', 'For Tenants', 'Mobile App'] },
                 { label: 'Company', links: ['About', 'Blog', 'Privacy', 'Terms'] },
@@ -398,17 +549,17 @@ export default function LandingPage() {
                   <div style={{ color: C.white, fontWeight: 600, fontSize: 14, marginBottom: 16 }}>{col.label}</div>
                   {col.links.map(l => (
                     <div key={l} style={{ marginBottom: 12 }}>
-                      <a href="#" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none', fontSize: 14 }}>{l}</a>
+                      <a href="#" style={{ color: 'rgba(255,255,255,0.45)', textDecoration: 'none', fontSize: 14, transition: 'color 150ms' }}>{l}</a>
                     </div>
                   ))}
                 </div>
               ))}
             </div>
           </div>
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-            <span style={{ fontSize: 13 }}>© 2024 Doorstep. All rights reserved.</span>
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+            <span style={{ fontSize: 13 }}>© 2026 Doorstep. All rights reserved.</span>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
-              <Shield size={14} color={C.moss} />
+              <Shield size={13} color={C.moss} />
               <span>256-bit encryption · SOC 2 Type II · FDIC insured transfers</span>
             </div>
           </div>

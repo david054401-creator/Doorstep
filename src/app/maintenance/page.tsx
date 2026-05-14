@@ -923,12 +923,13 @@ function RequestCard({
     <div
       style={{
         backgroundColor: C.white,
-        borderRadius: 12,
+        borderRadius: 14,
         border: `1px solid ${C.linen}`,
-        marginBottom: 8,
+        marginBottom: 10,
         overflow: 'hidden',
         borderLeft: `4px solid ${isResolved ? C.mist : priorityBorderColor(request.priority)}`,
-        opacity: isResolved ? 0.85 : 1,
+        opacity: isResolved ? 0.8 : 1,
+        boxShadow: isResolved ? 'none' : '0 1px 6px rgba(26,23,20,0.06)',
       }}
     >
       <div style={{ padding: 16 }}>
@@ -1140,18 +1141,19 @@ export default function MaintenancePage() {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 5,
-              padding: '7px 12px',
-              borderRadius: 10,
-              fontSize: 13,
-              fontWeight: 600,
+              gap: 6,
+              padding: '9px 16px',
+              borderRadius: 12,
+              fontSize: 14,
+              fontWeight: 700,
               backgroundColor: C.primary,
               color: C.white,
               border: 'none',
               cursor: 'pointer',
+              boxShadow: '0 2px 10px rgba(199,93,61,0.28)',
             }}
           >
-            <Plus size={14} />
+            <Plus size={15} />
             New request
           </button>
         </div>

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Building2, Home, Layers, LayoutGrid, HelpCircle, Plus, X,
-  ChevronRight, MessageSquare,
+  ChevronRight, MessageSquare, BedDouble, Bath, Ruler,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { formatCurrency } from '@/lib/utils';
@@ -36,27 +36,39 @@ const C = {
 /* ─── Property type config ─── */
 type PropertyType = Property['type'];
 
-const typeConfig: Record<PropertyType, { gradient: string; icon: React.ReactNode }> = {
+const typeConfig: Record<PropertyType, { gradient: string; icon: React.ReactNode; label: string }> = {
   house: {
-    gradient: 'linear-gradient(135deg, #C75D3D 0%, #A84A2E 100%)',
-    icon: <Home size={48} color="#FFFFFF" strokeWidth={1.5} />,
+    gradient: 'linear-gradient(145deg, #C75D3D 0%, #D4823B 100%)',
+    icon: <Home size={44} color="#FFFFFF" strokeWidth={1.5} />,
+    label: 'House',
   },
   duplex: {
-    gradient: 'linear-gradient(135deg, #D4923B 0%, #B07A2E 100%)',
-    icon: <Layers size={48} color="#FFFFFF" strokeWidth={1.5} />,
+    gradient: 'linear-gradient(145deg, #D4923B 0%, #C47A2E 100%)',
+    icon: <Layers size={44} color="#FFFFFF" strokeWidth={1.5} />,
+    label: 'Duplex',
   },
   condo: {
-    gradient: 'linear-gradient(135deg, #4A90C4 0%, #2E6E9E 100%)',
-    icon: <Building2 size={48} color="#FFFFFF" strokeWidth={1.5} />,
+    gradient: 'linear-gradient(145deg, #4A90C4 0%, #2E6E9E 100%)',
+    icon: <Building2 size={44} color="#FFFFFF" strokeWidth={1.5} />,
+    label: 'Condo',
   },
   apartment: {
-    gradient: 'linear-gradient(135deg, #5C8A3A 0%, #3E6025 100%)',
-    icon: <LayoutGrid size={48} color="#FFFFFF" strokeWidth={1.5} />,
+    gradient: 'linear-gradient(145deg, #5C8A3A 0%, #3E6025 100%)',
+    icon: <LayoutGrid size={44} color="#FFFFFF" strokeWidth={1.5} />,
+    label: 'Apartment',
   },
   other: {
-    gradient: 'linear-gradient(135deg, #6B6058 0%, #4D4540 100%)',
-    icon: <HelpCircle size={48} color="#FFFFFF" strokeWidth={1.5} />,
+    gradient: 'linear-gradient(145deg, #6B6058 0%, #4D4540 100%)',
+    icon: <HelpCircle size={44} color="#FFFFFF" strokeWidth={1.5} />,
+    label: 'Other',
   },
+};
+
+/* ─── Input style ─── */
+const inputStyle: React.CSSProperties = {
+  width: '100%', padding: '12px 14px', borderRadius: 10, fontSize: 15,
+  border: `1.5px solid #E8E3DC`, backgroundColor: '#FFFFFF', color: '#1A1714',
+  outline: 'none', boxSizing: 'border-box', fontFamily: 'Inter, sans-serif',
 };
 
 /* ─── Add Property Modal ─── */
@@ -67,15 +79,8 @@ function AddPropertyModal({ onClose }: { onClose: () => void }) {
   const router = useRouter();
 
   const [form, setForm] = useState({
-    name: '',
-    address: '',
-    type: 'house' as PropertyType,
-    units: '1',
-    monthlyRent: '',
-    beds: '',
-    baths: '',
-    sqft: '',
-    yearBuilt: '',
+    name: '', address: '', type: 'house' as PropertyType,
+    units: '1', monthlyRent: '', beds: '', baths: '', sqft: '', yearBuilt: '',
   });
 
   function handleChange(field: string, value: string) {
@@ -103,148 +108,73 @@ function AddPropertyModal({ onClose }: { onClose: () => void }) {
 
   return (
     <>
-      {/* Backdrop */}
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         onClick={onClose}
-        style={{
-          position: 'fixed', inset: 0, backgroundColor: 'rgba(26,23,20,0.5)',
-          zIndex: 40,
-        }}
+        style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(26,23,20,0.55)', zIndex: 40, backdropFilter: 'blur(4px)' }}
       />
-
-      {/* Sheet */}
       <motion.div
-        initial={{ y: 300 }}
-        animate={{ y: 0 }}
-        exit={{ y: 300 }}
+        initial={{ y: 300 }} animate={{ y: 0 }} exit={{ y: 300 }}
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
         style={{
           position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
-          backgroundColor: C.white, borderRadius: '20px 20px 0 0',
-          padding: '24px 20px 40px',
-          maxHeight: '90vh', overflowY: 'auto',
+          backgroundColor: C.white, borderRadius: '24px 24px 0 0',
+          padding: '0 20px 40px', maxHeight: '92vh', overflowY: 'auto',
         }}
       >
-        {/* Handle */}
-        <div style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.linen, margin: '0 auto 20px' }} />
-
-        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 14, paddingBottom: 20 }}>
+          <div style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.linen }} />
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-          <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: 22, color: C.ink, margin: 0 }}>
+          <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: 22, color: C.ink, margin: 0, fontWeight: 500 }}>
             Add a property
           </h2>
-          <button
-            onClick={onClose}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.stone, padding: 4 }}
-          >
-            <X size={22} />
+          <button onClick={onClose} style={{ background: C.cream, border: 'none', cursor: 'pointer', color: C.stone, padding: 8, borderRadius: 8, display: 'flex', alignItems: 'center' }}>
+            <X size={20} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit}>
-          {/* Property type */}
           <div style={{ marginBottom: 20 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: C.charcoal, marginBottom: 8 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: C.stone, marginBottom: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
               Property type
             </label>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {PROPERTY_TYPES.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => handleChange('type', t)}
-                  style={{
-                    padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 500,
-                    border: `2px solid ${form.type === t ? C.primary : C.linen}`,
-                    backgroundColor: form.type === t ? C.primary50 : C.white,
-                    color: form.type === t ? C.primary : C.stone,
-                    cursor: 'pointer',
-                    textTransform: 'capitalize',
-                  }}
-                >
-                  {t}
+                <button key={t} type="button" onClick={() => handleChange('type', t)} style={{
+                  padding: '7px 16px', borderRadius: 20, fontSize: 13, fontWeight: 600,
+                  border: `2px solid ${form.type === t ? C.primary : C.linen}`,
+                  backgroundColor: form.type === t ? C.primary50 : C.white,
+                  color: form.type === t ? C.primary : C.stone,
+                  cursor: 'pointer', textTransform: 'capitalize', transition: 'all 150ms',
+                }}>
+                  {typeConfig[t].label}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Name */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: C.charcoal, marginBottom: 6 }}>
-              Property name *
-            </label>
-            <input
-              value={form.name}
-              onChange={(e) => handleChange('name', e.target.value)}
-              placeholder="e.g. The Yellow House"
-              required
-              style={{
-                width: '100%', padding: '12px 14px', borderRadius: 10, fontSize: 15,
-                border: `1.5px solid ${C.linen}`, backgroundColor: C.white, color: C.ink,
-                outline: 'none', boxSizing: 'border-box',
-              }}
-            />
-          </div>
+          {[
+            { field: 'name', label: 'Property name *', placeholder: 'e.g. The Yellow House', required: true },
+            { field: 'address', label: 'Address *', placeholder: '123 Elm St, Portland, OR 97201', required: true },
+          ].map(({ field, label, placeholder, required }) => (
+            <div key={field} style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: C.stone, marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</label>
+              <input value={form[field as keyof typeof form]} onChange={(e) => handleChange(field, e.target.value)} placeholder={placeholder} required={required} style={inputStyle} />
+            </div>
+          ))}
 
-          {/* Address */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: C.charcoal, marginBottom: 6 }}>
-              Address *
-            </label>
-            <input
-              value={form.address}
-              onChange={(e) => handleChange('address', e.target.value)}
-              placeholder="123 Elm St, Portland, OR 97201"
-              required
-              style={{
-                width: '100%', padding: '12px 14px', borderRadius: 10, fontSize: 15,
-                border: `1.5px solid ${C.linen}`, backgroundColor: C.white, color: C.ink,
-                outline: 'none', boxSizing: 'border-box',
-              }}
-            />
-          </div>
-
-          {/* Rent + Units */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: C.charcoal, marginBottom: 6 }}>
-                Monthly rent *
-              </label>
-              <input
-                type="number"
-                value={form.monthlyRent}
-                onChange={(e) => handleChange('monthlyRent', e.target.value)}
-                placeholder="$1,500"
-                required
-                style={{
-                  width: '100%', padding: '12px 14px', borderRadius: 10, fontSize: 15,
-                  border: `1.5px solid ${C.linen}`, backgroundColor: C.white, color: C.ink,
-                  outline: 'none', boxSizing: 'border-box',
-                }}
-              />
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: C.stone, marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Monthly rent *</label>
+              <input type="number" value={form.monthlyRent} onChange={(e) => handleChange('monthlyRent', e.target.value)} placeholder="$1,500" required style={inputStyle} />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: C.charcoal, marginBottom: 6 }}>
-                Units
-              </label>
-              <input
-                type="number"
-                value={form.units}
-                onChange={(e) => handleChange('units', e.target.value)}
-                min="1"
-                style={{
-                  width: '100%', padding: '12px 14px', borderRadius: 10, fontSize: 15,
-                  border: `1.5px solid ${C.linen}`, backgroundColor: C.white, color: C.ink,
-                  outline: 'none', boxSizing: 'border-box',
-                }}
-              />
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: C.stone, marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Units</label>
+              <input type="number" value={form.units} onChange={(e) => handleChange('units', e.target.value)} min="1" style={inputStyle} />
             </div>
           </div>
 
-          {/* Beds / Baths / Sqft / Year */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 28 }}>
             {[
               { field: 'beds', label: 'Bedrooms', placeholder: '3' },
@@ -253,34 +183,24 @@ function AddPropertyModal({ onClose }: { onClose: () => void }) {
               { field: 'yearBuilt', label: 'Year built', placeholder: '1985' },
             ].map(({ field, label, placeholder }) => (
               <div key={field}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: C.charcoal, marginBottom: 6 }}>
-                  {label}
-                </label>
-                <input
-                  type="number"
-                  value={form[field as keyof typeof form]}
-                  onChange={(e) => handleChange(field, e.target.value)}
-                  placeholder={placeholder}
-                  style={{
-                    width: '100%', padding: '12px 14px', borderRadius: 10, fontSize: 15,
-                    border: `1.5px solid ${C.linen}`, backgroundColor: C.white, color: C.ink,
-                    outline: 'none', boxSizing: 'border-box',
-                  }}
-                />
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: C.stone, marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</label>
+                <input type="number" value={form[field as keyof typeof form]} onChange={(e) => handleChange(field, e.target.value)} placeholder={placeholder} style={inputStyle} />
               </div>
             ))}
           </div>
 
-          {/* Submit */}
-          <button
+          <motion.button
             type="submit"
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
             style={{
-              width: '100%', padding: '14px', borderRadius: 12, fontSize: 16, fontWeight: 600,
+              width: '100%', padding: '15px', borderRadius: 12, fontSize: 16, fontWeight: 700,
               backgroundColor: C.primary, color: C.white, border: 'none', cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(199,93,61,0.28)',
             }}
           >
             Add property
-          </button>
+          </motion.button>
         </form>
       </motion.div>
     </>
@@ -294,117 +214,134 @@ function PropertyCard({ property }: { property: Property }) {
 
   return (
     <motion.div
-      whileHover={{ scale: 1.01 }}
-      transition={{ duration: 0.15 }}
+      whileHover={{ scale: 1.01, y: -2 }}
+      transition={{ type: 'spring', stiffness: 380, damping: 26 }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
         backgroundColor: C.white,
         borderRadius: 20,
         border: `1px solid ${C.linen}`,
-        boxShadow: hovered
-          ? '0 8px 30px rgba(26,23,20,0.12)'
-          : '0 2px 8px rgba(26,23,20,0.06)',
+        boxShadow: hovered ? '0 12px 36px rgba(26,23,20,0.12)' : '0 2px 10px rgba(26,23,20,0.06)',
         overflow: 'hidden',
         marginBottom: 16,
         transition: 'box-shadow 0.2s ease',
       }}
     >
       {/* Banner */}
-      <div
-        style={{
-          height: 180,
-          background: config.gradient,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
+      <div style={{
+        height: 200,
+        background: config.gradient,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+      }}>
+        {/* Subtle pattern overlay */}
+        <div style={{ opacity: 0.12, position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle at 25% 25%, white 0%, transparent 50%), radial-gradient(circle at 75% 75%, white 0%, transparent 50%)' }} />
         {config.icon}
+
+        {/* Occupancy badge */}
+        <div style={{
+          position: 'absolute', top: 14, right: 14,
+          display: 'inline-flex', alignItems: 'center', gap: 5,
+          background: 'rgba(255,255,255,0.2)',
+          backdropFilter: 'blur(8px)',
+          borderRadius: 999, padding: '5px 12px',
+          border: '1px solid rgba(255,255,255,0.3)',
+        }}>
+          <div style={{ width: 7, height: 7, borderRadius: '50%', background: property.isOccupied ? '#A8F0B8' : '#FFB5A8' }} />
+          <span style={{ fontSize: 12, fontWeight: 600, color: C.white }}>
+            {property.isOccupied ? 'Occupied' : 'Vacant'}
+          </span>
+        </div>
+
+        {/* Type badge */}
+        <div style={{
+          position: 'absolute', top: 14, left: 14,
+          background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)',
+          borderRadius: 999, padding: '5px 12px',
+          border: '1px solid rgba(255,255,255,0.3)',
+        }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: C.white, textTransform: 'capitalize' }}>
+            {config.label}
+          </span>
+        </div>
       </div>
 
       {/* Content */}
-      <div style={{ padding: 16 }}>
-        {/* Name + occupancy */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-          <span
-            style={{
-              fontFamily: 'Fraunces, serif',
-              fontSize: 20,
-              color: C.ink,
-              fontWeight: 500,
-              lineHeight: 1.2,
-            }}
-          >
-            {property.name}
-          </span>
-          <div
-            style={{
-              width: 10,
-              height: 10,
-              borderRadius: '50%',
-              backgroundColor: property.isOccupied ? '#5C8A3A' : '#B8442E',
-              flexShrink: 0,
-            }}
-          />
-        </div>
+      <div style={{ padding: '18px 20px 20px' }}>
+        {/* Name */}
+        <h2 style={{
+          fontFamily: 'Fraunces, serif', fontSize: 22, color: C.ink,
+          fontWeight: 500, lineHeight: 1.2, marginBottom: 4, margin: '0 0 4px',
+        }}>
+          {property.name}
+        </h2>
 
         {/* Address */}
-        <p style={{ fontSize: 14, color: C.stone, margin: '0 0 12px', lineHeight: 1.4 }}>
+        <p style={{ fontSize: 14, color: C.stone, margin: '0 0 14px', lineHeight: 1.4 }}>
           {property.address}
         </p>
 
-        {/* Stats */}
-        <p style={{ fontSize: 14, color: C.stone, margin: '0 0 16px' }}>
-          <span>Monthly rent: {formatCurrency(property.monthlyRent)}</span>
-          <span style={{ margin: '0 8px', color: C.mist }}>·</span>
-          <span>Units: {property.units}</span>
-        </p>
+        {/* Stats row */}
+        <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
+          <div>
+            <span style={{ fontSize: 15, fontWeight: 700, color: C.ink, fontFamily: 'Inter, sans-serif' }}>
+              {formatCurrency(property.monthlyRent)}
+            </span>
+            <span style={{ fontSize: 12, color: C.stone, fontFamily: 'Inter, sans-serif' }}>/mo</span>
+          </div>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            {property.units > 1 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, color: C.stone }}>
+                <Building2 size={13} color={C.stone} strokeWidth={1.75} />
+                <span>{property.units} units</span>
+              </div>
+            )}
+            {property.beds && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, color: C.stone }}>
+                <BedDouble size={13} color={C.stone} strokeWidth={1.75} />
+                <span>{property.beds} bed</span>
+              </div>
+            )}
+            {property.baths && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, color: C.stone }}>
+                <Bath size={13} color={C.stone} strokeWidth={1.75} />
+                <span>{property.baths} bath</span>
+              </div>
+            )}
+            {property.sqft && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, color: C.stone }}>
+                <Ruler size={13} color={C.stone} strokeWidth={1.75} />
+                <span>{property.sqft.toLocaleString()} sqft</span>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Action buttons */}
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 10 }}>
           <Link href={`/properties/${property.id}`} style={{ textDecoration: 'none', flex: 1 }}>
-            <button
-              style={{
-                width: '100%',
-                padding: '8px 14px',
-                borderRadius: 10,
-                fontSize: 14,
-                fontWeight: 600,
-                border: `1.5px solid ${C.linen}`,
-                backgroundColor: 'transparent',
-                color: C.charcoal,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 4,
-              }}
-            >
-              View details
-              <ChevronRight size={14} />
+            <button style={{
+              width: '100%', padding: '10px 16px', borderRadius: 12,
+              fontSize: 14, fontWeight: 700, border: 'none',
+              backgroundColor: C.primary, color: C.white, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              boxShadow: '0 2px 8px rgba(199,93,61,0.22)',
+            }}>
+              View details <ChevronRight size={15} />
             </button>
           </Link>
-          <Link href="/messages" style={{ textDecoration: 'none', flex: 1 }}>
-            <button
-              style={{
-                width: '100%',
-                padding: '8px 14px',
-                borderRadius: 10,
-                fontSize: 14,
-                fontWeight: 600,
-                border: 'none',
-                backgroundColor: C.primary50,
-                color: C.primary,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 4,
-              }}
-            >
-              <MessageSquare size={14} />
-              Message
+          <Link href="/messages" style={{ textDecoration: 'none' }}>
+            <button style={{
+              padding: '10px 14px', borderRadius: 12,
+              fontSize: 14, fontWeight: 600, cursor: 'pointer',
+              border: `1.5px solid ${C.linen}`, backgroundColor: C.white, color: C.charcoal,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'background 150ms',
+            }}>
+              <MessageSquare size={16} color={C.stone} />
             </button>
           </Link>
         </div>
@@ -419,113 +356,77 @@ export default function PropertiesPage() {
   const [showModal, setShowModal] = useState(false);
 
   return (
-    <div
-      style={{
-        backgroundColor: C.cream,
-        minHeight: '100vh',
-        padding: 16,
-      }}
-    >
+    <div style={{ backgroundColor: C.cream, minHeight: '100vh', padding: '16px 16px 24px' }}>
       <div style={{ maxWidth: 600, margin: '0 auto' }}>
+
         {/* Header */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: 24,
-            paddingTop: 8,
-          }}
-        >
-          <h1
-            style={{
-              fontFamily: 'Fraunces, serif',
-              fontSize: 28,
-              color: C.ink,
-              margin: 0,
-              fontWeight: 500,
-            }}
-          >
-            Your Properties
-          </h1>
-          <button
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, paddingTop: 8 }}>
+          <div>
+            <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: 28, color: C.ink, margin: '0 0 4px', fontWeight: 500 }}>
+              Properties
+            </h1>
+            {properties.length > 0 && (
+              <p style={{ fontSize: 14, color: C.stone, margin: 0, fontFamily: 'Inter, sans-serif' }}>
+                {properties.length} {properties.length === 1 ? 'property' : 'properties'} · {properties.filter(p => p.isOccupied).length} occupied
+              </p>
+            )}
+          </div>
+          <motion.button
             onClick={() => setShowModal(true)}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 14px',
-              borderRadius: 10,
-              fontSize: 14,
-              fontWeight: 600,
-              backgroundColor: C.primary,
-              color: C.white,
-              border: 'none',
-              cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 7, padding: '10px 16px',
+              borderRadius: 12, fontSize: 14, fontWeight: 700,
+              backgroundColor: C.primary, color: C.white, border: 'none', cursor: 'pointer',
+              boxShadow: '0 2px 10px rgba(199,93,61,0.28)',
             }}
           >
             <Plus size={16} />
             Add property
-          </button>
+          </motion.button>
         </div>
 
         {/* Property list or empty state */}
         {properties.length === 0 ? (
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              paddingTop: 80,
-              textAlign: 'center',
-              gap: 12,
-            }}
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: 80, textAlign: 'center', gap: 16 }}
           >
-            <span style={{ fontSize: 80 }}>🏡</span>
-            <h2
-              style={{
-                fontFamily: 'Fraunces, serif',
-                fontSize: 22,
-                color: C.ink,
-                margin: 0,
-                fontWeight: 500,
-              }}
-            >
-              No properties yet
-            </h2>
-            <p style={{ fontSize: 15, color: C.stone, margin: 0 }}>
-              Add your first property to get started
-            </p>
+            <div style={{ width: 88, height: 88, borderRadius: 24, background: C.primary50, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 20px rgba(199,93,61,0.15)' }}>
+              <Building2 size={40} color={C.primary} strokeWidth={1.5} />
+            </div>
+            <div>
+              <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: 24, color: C.ink, margin: '0 0 8px', fontWeight: 500 }}>
+                No properties yet
+              </h2>
+              <p style={{ fontSize: 16, color: C.stone, margin: 0 }}>
+                Add your first property to get started
+              </p>
+            </div>
             <Link href="/onboarding" style={{ textDecoration: 'none', marginTop: 8 }}>
-              <button
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.97 }}
                 style={{
-                  padding: '12px 24px',
-                  borderRadius: 12,
-                  fontSize: 15,
-                  fontWeight: 600,
-                  backgroundColor: C.primary,
-                  color: C.white,
-                  border: 'none',
-                  cursor: 'pointer',
+                  padding: '13px 28px', borderRadius: 14, fontSize: 16, fontWeight: 700,
+                  backgroundColor: C.primary, color: C.white, border: 'none', cursor: 'pointer',
+                  boxShadow: '0 4px 16px rgba(199,93,61,0.28)',
                 }}
               >
-                Add property
-              </button>
+                Add your first property
+              </motion.button>
             </Link>
           </motion.div>
         ) : (
-          <div>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ staggerChildren: 0.08 }}>
             {properties.map((property) => (
               <PropertyCard key={property.id} property={property} />
             ))}
-          </div>
+          </motion.div>
         )}
       </div>
 
-      {/* Modal */}
       <AnimatePresence>
         {showModal && <AddPropertyModal onClose={() => setShowModal(false)} />}
       </AnimatePresence>

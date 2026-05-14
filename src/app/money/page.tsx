@@ -865,12 +865,15 @@ export default function MoneyPage() {
         {/* ── Section 2: Hero summary card ─────────────────────────────────── */}
         <div
           style={{
-            background: C.white,
+            background: 'linear-gradient(145deg, #FEF7F4 0%, #FFFCFA 45%, #FFFFFF 100%)',
             borderRadius: 20,
-            border: `1px solid ${C.linen}`,
+            border: '1px solid rgba(199,93,61,0.18)',
             padding: 24,
             marginBottom: 24,
             textAlign: 'center',
+            boxShadow: '0 2px 16px rgba(199,93,61,0.08), 0 1px 4px rgba(26,23,20,0.04)',
+            position: 'relative',
+            overflow: 'hidden',
           }}
         >
           <div
@@ -889,13 +892,14 @@ export default function MoneyPage() {
           {/* Big net income number */}
           <div
             style={{
-              fontSize: 48,
+              fontSize: 54,
               fontFamily: 'Fraunces, Georgia, serif',
-              fontWeight: 700,
+              fontWeight: 500,
               color: netIncome >= 0 ? C.ink : C.brick,
-              lineHeight: 1.1,
-              letterSpacing: '-0.02em',
+              lineHeight: 1.05,
+              letterSpacing: '-0.025em',
               marginBottom: 16,
+              fontFeatureSettings: '"tnum"',
             }}
           >
             {netIncome < 0 ? '-' : ''}${displayNet.toLocaleString()}
