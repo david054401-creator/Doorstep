@@ -44,6 +44,8 @@ import type { StudioNode, StudioShot } from '../delivery/studio.ts';
 import { validatePlanCoverage } from '../validators/substrate.ts';
 import { encodePng } from '../raster/png.ts';
 import { describeProviders, deterministicProviders } from '../providers/registry.ts';
+import { loadConfig, resolveProviders, providerCaveats, CONFIG_FILENAME } from '../providers/config.ts';
+import { scaffold } from './init.ts';
 import { poseRig, defaultSwaps } from '../rig/rig.ts';
 import { emptyScene } from '../render/scene.ts';
 import { parseHex } from '../core/color.ts';
@@ -83,6 +85,7 @@ export function parseArgs(argv: readonly string[]): Args {
 
 const HELP = `${bold('film')} — 2D Feature Engine
 
+  ${bold('film init')} <name> [dir]        Scaffold a new film: script, bible, graph, config
   ${bold('film demo')}                     Build the MIBO demo project and write it out
   ${bold('film build')} [project.json]     Run the full pipeline, print the score sheet
   ${bold('film validate')} [project.json]  Validate without rendering
@@ -126,6 +129,34 @@ export async function main(argv: readonly string[]): Promise<number> {
     case '-h':
       process.stdout.write(`${HELP}\n`);
       return 0;
+
+    case 'init': {
+      const name = args.positional[0];
+      if (!name) {
+        process.stderr.write('Name the film: film init "The Lost Hum" [directory]\n');
+        return 1;
+      }
+      const directory = resolve(args.positional[1] ?? '.');
+      const result = scaffold({
+        name,
+        directory,
+        force: !!args.flags.force,
+        fps: args.flags.fps ? Number(args.flags.fps) : undefined,
+        width: args.flags.width ? Number(args.flags.width) : undefined,
+        height: args.flags.height ? Number(args.flags.height) : undefined,
+      });
+      const lines = result.written.map((f) => `${green('Wrote')} ${f}`);
+      for (const f of result.skipped) {
+        lines.push(`${yellow('Kept')}  ${f} ${dim('(already there; --force to overwrite)')}`);
+      }
+      lines.push('');
+      lines.push(`${bold(name)} is scaffolded. Next:`);
+      lines.push(dim(`  cd ${directory}`));
+      lines.push(dim('  film validate          # every check, no pixels'));
+      lines.push(dim('  film studio --out out  # build what the studio UI reads'));
+      print(lines.join('\n'), quiet);
+      return 0;
+    }
 
     case 'demo': {
       mkdirSync(out, { recursive: true });
@@ -543,6 +574,25 @@ export async function main(argv: readonly string[]): Promise<number> {
     }
 
     case 'providers': {
+      const loaded = loadConfig();
+      const resolved = await resolveProviders(loaded);
+      const lines = [
+        loaded.path ? `${dim('config')} ${loaded.path}` : dim(`no ${CONFIG_FILENAME} found; every slot is on its deterministic baseline`),
+        '',
+        ...resolved.report.map((r) => `  ${r}`),
+      ];
+      const caveats = providerCaveats(resolved);
+      if (caveats.length) {
+        lines.push('');
+        for (const c of caveats) lines.push(yellow(`  ${c}`));
+      }
+      lines.push('');
+      lines.push(dim(describeProviders(resolved.set).join('\n')));
+      print(lines.join('\n'), quiet);
+      return resolved.failures.length > 0 ? 1 : 0;
+    }
+
+    case 'providers-builtin': {
       print(describeProviders(deterministicProviders()).join('\n'), quiet);
       return 0;
     }

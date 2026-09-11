@@ -1,14 +1,27 @@
 {
   "name": "@doorstep/film-engine",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.2.0",
   "type": "module",
   "description": "2D Feature Engine — intent to structured film to verified frames. Structure first, pixels last.",
+  "license": "UNLICENSED",
   "bin": { "film": "./bin/film.mjs" },
-  "exports": { ".": "./src/index.ts" },
-  "scripts": {
-    "test": "node --test --experimental-strip-types tests/",
-    "film": "node bin/film.mjs"
+  "exports": {
+    ".": "./src/index.ts",
+    "./providers": "./src/providers/index.ts",
+    "./critics": "./src/critics/types.ts",
+    "./graph": "./src/graph/types.ts",
+    "./package.json": "./package.json"
   },
-  "engines": { "node": ">=22.18" }
+  "files": ["src", "bin", "examples", "README.md"],
+  "scripts": {
+    "test": "node --test 'tests/*.test.ts'",
+    "typecheck": "tsc --noEmit",
+    "film": "node bin/film.mjs",
+    "prepublishOnly": "npm run typecheck && npm test"
+  },
+  "keywords": ["animation", "2d", "pipeline", "rigging", "film"],
+  "peerDependencies": { "zod": "^4" },
+  "peerDependenciesMeta": { "zod": { "optional": true } },
+  "engines": { "node": ">=22.18" },
+  "publishConfig": { "access": "restricted" }
 }
