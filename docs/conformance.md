@@ -136,9 +136,25 @@ cd .. && FILM_STUDIO_BUILD=$PWD/out/studio npm run dev      # → /studio
 
 ```bash
 cd engine
-node --test 'tests/*.test.ts'    # the engine
+node --test 'tests/*.test.ts'    # 259 tests
 npx tsc --noEmit                 # types
+node bin/film.mjs rig             # the pose battery, 5 views x 20 poses
+node bin/film.mjs contract        # the thirteen invariants
 cd .. && python3 blender/test_plan.py
 npx eslint src/app/studio src/components/studio src/lib/studio
 npx next build
+```
+
+## Looking at it
+
+The one check that no validator replaces. Every serious fault in the
+first MIBO render — a world built at the wrong scale, the hero tree
+outside every frame, a canopy three L* from the ground it stands on, the
+establishing shot pointed at the dirt, a run cut in medium close-up,
+characters with no contact shadow — was invisible in the numbers and
+obvious in the first contact sheet.
+
+```bash
+cd engine && node bin/film.mjs studio --out ../out/studio --gates approve
+# then open out/studio/contact/<shot>.png, or the studio at /studio
 ```

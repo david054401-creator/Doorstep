@@ -108,6 +108,39 @@ self-intersection. The rig ships at zero inversions or it does not ship.
 `engine/src/rig/repair.ts` holds a ten-move repair table and runs it to a
 budget with rollback and an escalation card.
 
+## Locomotion
+
+A walk is not a pose. Blocking a locomotion beat by interpolating to a
+single "walk pose" and holding it produces a character who glides across
+the ground with their legs frozen mid-stride, and it is one of the
+easiest things in the medium to get wrong.
+
+`animation/pose-library.ts` carries four-key cycles — contact, down,
+passing, up — for both a walk and a run, with the second half of each
+period being the first half with the limbs swapped. A run is not a fast
+walk: the torso leans, the knees come higher, the arms drive from a bent
+elbow, and there is a frame with the body off the ground. The period
+scales with the frame rate and is quantised so the half-cycle lands on a
+key.
+
+`animation/blocking.ts` lays the cycle down over the beat's full
+duration and then solves the ground travel by **foot lock**: it reads
+back the channels it has just written, evaluates the real skeleton frame
+by frame, and moves the root to cancel the contact foot's measured
+drift. Two obvious alternatives are both wrong. Picking a stride length
+by eye is how every skating character ever made got made. Deriving one
+from the contact pose assumes the legs sweep the foot cleanly front to
+back, which authored cycle keys do not — they are snapshots, and the
+foot moves between them however the interpolation takes it. During the
+airborne phase of a run neither foot is down and there is nothing to
+measure, so the root coasts at the ground speed it last had.
+
+The support foot is the one that is *not moving*, not simply the lower
+one: at the moment of a step both are down, and chasing the wrong one
+drags the other out from under the character.
+
+A line spoken mid-run takes the upper body; the cycle keeps the legs.
+
 ## Taste as code
 
 **The twelve principles are measurements** (`engine/src/director/principles.ts`).

@@ -69,7 +69,7 @@ rasteriser, see [`../blender/README.md`](../blender/README.md).
 | Core | `src/core/` | Vectors and matrices, robust polynomial fitting, CIELAB and CIEDE2000, check results and score sheets, seeded RNG, content hashing, units. |
 | Raster | `src/raster/` | Analytic scanline anti-aliased fills, stroking, blur and haze, and a PNG codec over `node:zlib`. Byte-reproducible. |
 | Rigging | `src/rig/` | Planar dual-quaternion skinning, analytic two-bone IK, FABRIK, spring bones, five-view skeletons, a twenty-pose battery and a bounded repair loop. |
-| Animation | `src/animation/` | Blocking from beats, pose library, curve evaluation, additive idle layers, secondary motion, forced-alignment-compatible lipsync. |
+| Animation | `src/animation/` | Blocking from beats, an asymmetric pose library, walk and run cycles with footstep-driven root motion, curve evaluation, additive idle layers, secondary motion, forced-alignment-compatible lipsync. |
 | Timing | `src/timing/` | Easing, curves with real handles, ones-and-twos charts, timing templates. |
 | Director | `src/director/` | The twelve principles as measurable metrics, shot grammar, the repair table, and the note parser. |
 | Critics | `src/critics/` | Tier-1 perceptual metrics that always run, a VLM client and ensemble, rubrics, and the calibration gate that decides whether a critic may block. |
@@ -91,6 +91,12 @@ rasteriser, see [`../blender/README.md`](../blender/README.md).
   perceptual distance is not LPIPS and never claims to be; the identity
   descriptor is not DINOv2. The provider seam is where the learned model
   goes, and until one is configured the checks say so.
+- **A false failure is as bad as a missed one.** A check that flags
+  correct work teaches people to ignore the report. Foreshortening in a
+  three-quarter view is not going off model; an eased move over a long
+  hold is not a stutter; a foot settling two pixels onto the ground is
+  not skating. Each of those was a real bug in a validator, found by
+  rendering the demo and looking at it.
 - **No studio is trained on, cloned, or named.** "Feature-level" is a
   craft bar to clear with our own style bible and our own characters.
 
