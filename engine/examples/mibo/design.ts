@@ -22,18 +22,18 @@ export const MIBO_PALETTE: NamedSwatch[] = [
   { name: 'mibo.pupil', hex: '#2A2118', role: 'pupil', tolerance: 2 },
   { name: 'mibo.mouth', hex: '#8C3B37', role: 'mouth interior', tolerance: 3 },
   { name: 'mibo.line', hex: '#3A2A1C', role: 'character line', tolerance: 2 },
-  { name: 'pip.body', hex: '#6FBF8E', role: 'PIP body base', tolerance: 3 },
-  { name: 'pip.body.shade', hex: '#4E9A6D', role: 'PIP body shadow', tolerance: 3 },
-  { name: 'pip.belly', hex: '#CFEBD8', role: 'PIP belly', tolerance: 3 },
-  { name: 'pip.belly.shade', hex: '#AACDB8', role: 'PIP belly shadow', tolerance: 3 },
-  { name: 'sky.day', hex: '#BFE4F2', role: 'daytime sky', tolerance: 4 },
-  { name: 'sky.dusk', hex: '#F2C39B', role: 'dusk sky', tolerance: 4 },
-  { name: 'hill.far', hex: '#A9CFA0', role: 'far hills', tolerance: 4 },
-  { name: 'hill.mid', hex: '#87B87E', role: 'mid hills', tolerance: 4 },
-  { name: 'ground.near', hex: '#6FA267', role: 'near ground', tolerance: 4 },
-  { name: 'ground.shade', hex: '#568350', role: 'ground shadow', tolerance: 4 },
-  { name: 'tree.trunk', hex: '#8A6242', role: 'tree trunk', tolerance: 4 },
-  { name: 'tree.leaf', hex: '#5E9E62', role: 'foliage', tolerance: 4 },
+  { name: 'pip.body', hex: '#C0C3F3', role: 'PIP body base', tolerance: 3 },
+  { name: 'pip.body.shade', hex: '#A29ECC', role: 'PIP body shadow', tolerance: 3 },
+  { name: 'pip.belly', hex: '#E3E4F6', role: 'PIP belly', tolerance: 3 },
+  { name: 'pip.belly.shade', hex: '#C4C5DB', role: 'PIP belly shadow', tolerance: 3 },
+  { name: 'sky.day', hex: '#88B2C1', role: 'daytime sky', tolerance: 4 },
+  { name: 'sky.dusk', hex: '#BC8C61', role: 'dusk sky', tolerance: 4 },
+  { name: 'hill.far', hex: '#6C9663', role: 'far hills', tolerance: 4 },
+  { name: 'hill.mid', hex: '#4D8446', role: 'mid hills', tolerance: 4 },
+  { name: 'ground.near', hex: '#387233', role: 'near ground', tolerance: 4 },
+  { name: 'ground.shade', hex: '#2B5D28', role: 'ground shadow', tolerance: 4 },
+  { name: 'tree.trunk', hex: '#6C4524', role: 'tree trunk', tolerance: 4 },
+  { name: 'tree.leaf', hex: '#1E6C2D', role: 'foliage', tolerance: 4 },
   { name: 'prop.lantern', hex: '#FFD98A', role: 'lantern glow', tolerance: 4 },
 ];
 
@@ -74,6 +74,11 @@ export const MIBO_STYLE_BIBLE: StyleBible = {
     ambientOcclusion: false,
   },
   textures: ['flat cel fill', 'very light paper grain on backgrounds only'],
+  // Value key: the cast are the lightest, warmest things on screen and the
+  // world sits well below them. The first pass at this palette put MIBO at
+  // L* 77 against hills at L* 79, and the contrast validator was right to
+  // reject it — at two points of separation the character dissolved into
+  // the meadow. Backgrounds now run L* 35-70 against a cast at L* 65-90.
   forbidden: [
     'gradients on characters',
     'photographic textures',
@@ -229,7 +234,16 @@ export const MIBO_DESIGN: CharacterDesign = {
   views: ['front', 'threeQuarterL', 'threeQuarterR', 'sideR', 'back'],
 };
 
-/** PIP — MIBO's smaller companion. Same construction, different colour and scale. */
+/**
+ * PIP — MIBO's smaller companion. Same construction, different colour
+ * and scale.
+ *
+ * PIP started out green, and the character-versus-background contrast
+ * check rejected every shot: a green character standing in a green
+ * meadow has no value separation and barely any hue separation. The cast
+ * now sits on opposite sides of the wheel from the world and from each
+ * other — MIBO warm orange, PIP cool lavender, the meadow deep green.
+ */
 export const PIP_DESIGN: CharacterDesign = {
   ...MIBO_DESIGN,
   id: 'char_pip',

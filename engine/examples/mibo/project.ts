@@ -82,7 +82,11 @@ export const MIBO_DELIVERY: DeliverySpec = {
  */
 const GROUND_Y = 0;
 const CHARACTER_HEIGHT = 360;
-const HORIZON_Y = -CHARACTER_HEIGHT * 0.9;
+// A high horizon. The cast then plays against the hills rather than the
+// sky, which is where the value separation is: a pale warm character on a
+// pale sky has hue contrast and almost no value contrast, and reads as
+// mush. Preschool layout does this on purpose.
+const HORIZON_Y = -CHARACTER_HEIGHT * 1.5;
 const WORLD_WIDTH = 9000;
 
 /** A rolling hill silhouette that straddles the horizon. */
@@ -141,8 +145,8 @@ export function meadowEnvironment(): Environment {
     id: makeId('layout', 'meadow'),
     // The horizon is at eye height, which is what sets the camera's angle
     // on the world and what the layout validator checks every shot against.
-    vanishingPoints: [{ x: 0.5, y: 0.34 }],
-    horizonY: 0.34,
+    vanishingPoints: [{ x: 0.5, y: 0.2 }],
+    horizonY: 0.2,
     blocks: [
       { id: 'ground', name: 'Ground plane', contours: [band(HORIZON_Y, GROUND_Y + 4000)], depth: 0.85 },
       { id: 'tree', name: 'Hero tree', contours: tree(980, GROUND_Y, 1), depth: 0.7 },

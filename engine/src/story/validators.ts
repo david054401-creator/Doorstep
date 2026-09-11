@@ -317,19 +317,25 @@ export function checkContinuity(sequence: Sequence): {
     const sameScene = prev.sceneId === shot.sceneId;
     if (!sameScene) continue;
 
-    // A character present in the previous shot who silently disappears
-    // mid-scene, with no exit beat, is a continuity break.
+    // A character who should still be in frame but is not.
+    //
+    // Cutting from one character's single to another's is ordinary
+    // coverage, not a continuity error, so absence only counts in a shot
+    // wide enough to have included them. A two-shot that loses someone
+    // between cuts, with no exit beat, is a real break.
+    const WIDE = new Set(['mls', 'ls', 'els', 'twoShot']);
     const prevChars = new Set(prev.staging.characters.map((c) => c.characterId));
     const nowChars = new Set(shot.staging.characters.map((c) => c.characterId));
-    const exitWords = /\b(exits?|leaves?|walks? off|runs? off|disappears?|hides?)\b/i;
+    const exitWords = /\b(exits?|leaves?|walks? off|runs? off|disappears?|hides?|goes? inside)\b/i;
     const prevExits = prev.beats.some((b) => exitWords.test(b.action));
-    for (const c of prevChars) {
-      if (!nowChars.has(c) && !prevExits && nowChars.size > 0) {
+    if (WIDE.has(shot.camera.size) && WIDE.has(prev.camera.size) && !prevExits) {
+      for (const c of prevChars) {
+        if (nowChars.has(c) || nowChars.size === 0) continue;
         issues.push({
           kind: 'character_vanishes',
           shotId: shot.id,
           previousShotId: prev.id,
-          detail: `${c} is present in shot ${prev.number} and gone in shot ${shot.number} with no exit beat.`,
+          detail: `${c} is in shot ${prev.number} (${prev.camera.size}) and gone from shot ${shot.number} (${shot.camera.size}) with no exit beat. Both shots are wide enough to have shown them.`,
         });
       }
     }

@@ -387,7 +387,10 @@ function buildStaging(characterIds: readonly string[], shotIndex: number): Stagi
       position: { x: characterIds.length > 1 ? (i === 0 ? -110 : 110) : 0, y: 0 },
       scale: 1,
       facingRight,
-      depth: 0.5,
+      // Characters stand on the ground plane, so they sit well forward in
+      // the multiplane stack. The pipeline refines this against the actual
+      // environment; 0.85 is the sane default for a character on their feet.
+      depth: 0.85,
     };
   });
   const eyelines: Record<string, Point2> = {};
