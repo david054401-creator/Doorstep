@@ -8,7 +8,8 @@
  * says so instead of guessing.
  */
 
-import type { Shot, StructuredEdit, DirectorNote, Locator, Point } from '../graph/types.ts';
+import type { Shot, StructuredEdit, DirectorNote, Point } from '../graph/types.ts';
+import type { Locator } from '../core/result.ts';
 import { makeId } from '../core/ids.ts';
 import { SHOT_REPAIR_TABLE } from './repair-table.ts';
 import type { ShotRepairMove } from './repair-table.ts';

@@ -125,7 +125,18 @@ export function blockShot(
 
     beats.sort((a, b) => a.startFrame - b.startFrame);
 
-    for (const beat of beats) {
+    for (let beatIndex = 0; beatIndex < beats.length; beatIndex++) {
+      const beat = beats[beatIndex];
+      // A beat's move has to land before the next beat starts writing to
+      // the same channels. Beats overlap routinely — a line begins partway
+      // through the action it is spoken over — and without this clamp the
+      // next beat's opening key lands mid-move and snaps the pose to its
+      // destination in a single frame. That pop is invisible in the graph
+      // and glaring on screen, and it is what the arc validator catches.
+      const next = beats[beatIndex + 1];
+      const window = next
+        ? Math.max(2, Math.min(beat.durationFrames, next.startFrame - beat.startFrame))
+        : Math.max(2, Math.min(beat.durationFrames, shot.durationFrames - beat.startFrame));
       const cls = actionClassFor(beat);
       const chosen: LibraryPose = selectPose({
         emotion: beat.emotion,
@@ -144,7 +155,7 @@ export function blockShot(
       // The move must fit in the beat: scale the template down if not.
       const needed =
         shape.anticipationFrames + shape.actionFrames + shape.overshootFrames + shape.settleFrames;
-      const fit = needed > beat.durationFrames ? beat.durationFrames / needed : 1;
+      const fit = needed > window ? window / needed : 1;
       const fitted = {
         ...shape,
         anticipationFrames: Math.max(1, Math.round(shape.anticipationFrames * fit)),

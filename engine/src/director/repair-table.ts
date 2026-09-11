@@ -416,6 +416,29 @@ export const SHOT_REPAIR_TABLE: ShotRepairMove[] = [
     apply: (shot, check) => plantFoot(shot, check),
   },
   {
+    id: 'rerender_from_sheet',
+    diagnoses: ['animation.off_model_proportions', 'identity.drift'],
+    describe:
+      'Reset the character to the locked model sheet scale and re-run the identity gate.',
+    apply: (shot, check) => {
+      const characterId = check.where.characterId ?? shot.staging.characters[0]?.characterId;
+      if (!characterId) return null;
+      const placement = shot.staging.characters.find((c) => c.characterId === characterId);
+      // Off-model proportions in a rig-rendered shot almost always mean a
+      // non-uniform placement scale, because the rig itself cannot drift.
+      if (!placement || placement.scale === 1) return null;
+      return {
+        ...shot,
+        staging: {
+          ...shot.staging,
+          characters: shot.staging.characters.map((c) =>
+            c.characterId === characterId ? { ...c, scale: 1 } : c,
+          ),
+        },
+      };
+    },
+  },
+  {
     id: 'vary_shot_size',
     diagnoses: ['grammar.flat_coverage', 'grammar.size_monotony'],
     describe: 'Change the shot size so the coverage stops reading flat.',

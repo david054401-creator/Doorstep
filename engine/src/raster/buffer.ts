@@ -122,7 +122,16 @@ export function alphaMap(img: ImageBuffer): Float32Array {
   return out;
 }
 
-/** Sobel gradient magnitude over luminance, normalised 0..1. */
+/**
+ * Edge magnitude over luminance, normalised 0..1.
+ *
+ * Sobel alone is blind to one-pixel alternation: on a stripe pattern the
+ * two neighbours either side are identical, the symmetric kernel cancels,
+ * and the busiest image the engine will ever see measures as perfectly
+ * flat. Since high-frequency texture is precisely the tell this measure
+ * exists to catch — a generated background that dissolves into noise —
+ * the forward difference is taken as well and the larger response wins.
+ */
 export function edgeMap(img: ImageBuffer): Float32Array {
   const lum = luminanceMap(img);
   const { width: w, height: h } = img;
@@ -140,7 +149,9 @@ export function edgeMap(img: ImageBuffer): Float32Array {
       const br = lum[i + w + 1];
       const gx = tl + 2 * l + bl - (tr + 2 * r + br);
       const gy = tl + 2 * t + tr - (bl + 2 * b + br);
-      out[i] = Math.min(1, Math.hypot(gx, gy) / 4);
+      const sobel = Math.hypot(gx, gy) / 4;
+      const forward = Math.hypot(lum[i] - r, lum[i] - b);
+      out[i] = Math.min(1, Math.max(sobel, forward));
     }
   }
   return out;

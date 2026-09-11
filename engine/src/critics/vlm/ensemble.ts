@@ -47,8 +47,10 @@ export async function runEnsemble(
   else if (passes.length > 0) consensus = 'pass';
   else consensus = 'uncertain';
 
-  // Only a calibrated critic may block. An uncalibrated one advises.
-  const gating = verdicts.some((v) => canGate(registry, rubric.id, v.model));
+  // Only a calibrated critic may block. An uncalibrated one advises — and
+  // a verdict that does not even name the model behind it can never be
+  // matched to a calibration record, so it never gates.
+  const gating = verdicts.some((v) => !!v.model && canGate(registry, rubric.id, v.model));
 
   const citations = verdicts.flatMap((v) => v.citations);
   const citationText = citations.length

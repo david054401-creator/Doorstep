@@ -175,7 +175,14 @@ export function scriptToSequence(
 
       const beats: Beat[] = [];
       if (actionText) {
-        const frames = Math.max(minShot, Math.round(actionFrames(actionText, fps)));
+        // The action plays, then they speak. Letting the action beat run
+        // past the first line means two beats fighting over the same
+        // channels, and the second one truncates the first into a pop.
+        const firstLineAt = dialogue[0]?.startFrame ?? Infinity;
+        const frames = Math.max(
+          minShot,
+          Math.min(Math.round(actionFrames(actionText, fps)), Math.max(minShot, firstLineAt)),
+        );
         beats.push({
           id: makeId('beat', `${shotId}:action`),
           intent: intentFromAction(actionText),

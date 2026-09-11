@@ -279,16 +279,28 @@ function edgeContrast(
 ): number {
   const L = lightnessMap(frame);
   const deltas: number[] = [];
-  for (let y = 2; y < height - 2; y++) {
-    for (let x = 2; x < width - 2; x++) {
+  // Step clear of the line itself. A cel character's outline is the
+  // separation device, not the thing being separated: sampling on the
+  // line compares the ink to the background instead of comparing the
+  // character to it.
+  const step = 3;
+  for (let y = step + 1; y < height - step - 1; y++) {
+    for (let x = step + 1; x < width - step - 1; x++) {
       const i = y * width + x;
       if (!mask[i]) continue;
-      // An edge pixel is inside the mask with an outside neighbour.
-      const outside = [i - 1, i + 1, i - width, i + width].find((j) => !mask[j]);
-      if (outside === undefined) continue;
-      const inner = L[i];
-      const outer = L[outside];
-      deltas.push(Math.abs(inner - outer));
+      let dir: [number, number] | null = null;
+      if (!mask[i - 1]) dir = [-1, 0];
+      else if (!mask[i + 1]) dir = [1, 0];
+      else if (!mask[i - width]) dir = [0, -1];
+      else if (!mask[i + width]) dir = [0, 1];
+      if (!dir) continue;
+      const inX = x - dir[0] * step;
+      const inY = y - dir[1] * step;
+      const outX = x + dir[0] * step;
+      const outY = y + dir[1] * step;
+      if (!mask[inY * width + inX]) continue;
+      if (mask[outY * width + outX]) continue;
+      deltas.push(Math.abs(L[inY * width + inX] - L[outY * width + outX]));
     }
   }
   if (deltas.length === 0) return 100;

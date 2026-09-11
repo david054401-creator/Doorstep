@@ -90,30 +90,50 @@ export function solveChain(
     const len2 = vdist(b1.head, b1.tail);
     // Parent world rotation, so we can express the solve as local rotations.
     const parentRot = b0.worldRotation - (out[chain[0]]?.rotation ?? 0);
-    const bendPositive = options.poleTarget
-      ? vcross(vsub(tgt, b0.head), vsub({ x: options.poleTarget.x, y: options.poleTarget.y }, b0.head)) < 0
-      : vcross(vsub(b1.tail, b0.head), vsub(b0.tail, b0.head)) <= 0;
     const rest0 = b0.bone.restRotation;
     const rest1 = b1.bone.restRotation;
-    const s = solveTwoBone(b0.head, len1, len2, tgt, bendPositive);
-    const local0 = wrapAngle(s.angle1 - parentRot - rest0);
-    const local1 = wrapAngle(s.angle2 - (rest1 - rest0));
-    out[chain[0]] = {
-      ...out[chain[0]],
-      rotation: blendAngle(out[chain[0]]?.rotation ?? 0, applyLimits(b0.bone, local0), weight),
-    };
-    out[chain[1]] = {
-      ...out[chain[1]],
-      rotation: blendAngle(out[chain[1]]?.rotation ?? 0, applyLimits(b1.bone, local1), weight),
-    };
-    const check = evaluatePose(bones, out, ix);
-    const eff = check.bones.get(chain[chain.length - 1])!;
-    return {
-      pose: out,
-      residual: vdist(eff.tail, tgt),
-      outOfReach: s.outOfReach,
-      iterations: 1,
-    };
+
+    // Both elbow directions are solved and the better one kept.
+    //
+    // Rotation limits make this necessary rather than merely tidy: a joint
+    // that can only bend one way will clamp the wrong-handed solution flat
+    // and leave the effector nowhere near its target, while the mirrored
+    // solution lands it exactly. A pole target, when supplied, states the
+    // preference and is honoured first.
+    const preferred = options.poleTarget
+      ? vcross(
+          vsub(tgt, b0.head),
+          vsub({ x: options.poleTarget.x, y: options.poleTarget.y }, b0.head),
+        ) < 0
+      : vcross(vsub(b1.tail, b0.head), vsub(b0.tail, b0.head)) <= 0;
+
+    let best: IKResult | null = null;
+    for (const bendPositive of [preferred, !preferred]) {
+      const s = solveTwoBone(b0.head, len1, len2, tgt, bendPositive);
+      const local0 = wrapAngle(s.angle1 - parentRot - rest0);
+      const local1 = wrapAngle(s.angle2 - (rest1 - rest0));
+      const candidate: Pose = { ...pose };
+      candidate[chain[0]] = {
+        ...candidate[chain[0]],
+        rotation: blendAngle(pose[chain[0]]?.rotation ?? 0, applyLimits(b0.bone, local0), weight),
+      };
+      candidate[chain[1]] = {
+        ...candidate[chain[1]],
+        rotation: blendAngle(pose[chain[1]]?.rotation ?? 0, applyLimits(b1.bone, local1), weight),
+      };
+      const check = evaluatePose(bones, candidate, ix);
+      const eff = check.bones.get(chain[chain.length - 1])!;
+      const result: IKResult = {
+        pose: candidate,
+        residual: vdist(eff.tail, tgt),
+        outOfReach: s.outOfReach,
+        iterations: 1,
+      };
+      if (!best || result.residual < best.residual) best = result;
+      // The preferred direction wins outright when it actually lands.
+      if (best.residual < 0.01) break;
+    }
+    return best!;
   }
 
   // FABRIK on the posed joint positions.

@@ -10,7 +10,8 @@
 import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync, statSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import type { Hash, Provenance } from '../core/ids.ts';
-import { hashContent, stableStringify } from '../core/ids.ts';
+import { hashContent, hashBytes } from '../core/ids.ts';
+import { encodeArtifact, decodeArtifact, estimateBytes } from './serialize.ts';
 
 export type CacheEntry<T = unknown> = {
   key: Hash;
@@ -38,7 +39,9 @@ export function memoryCache(): Cache {
   return {
     get: <T,>(key: Hash) => store.get(key) as CacheEntry<T> | undefined,
     set: <T,>(key: Hash, value: T, provenance: Provenance) => {
-      const bytes = Buffer.byteLength(stableStringify(value), 'utf8');
+      // Measured, not serialised. Stringifying a few hundred frames to
+      // find out how big they are costs more than rendering them.
+      const bytes = estimateBytes(value);
       const entry: CacheEntry<T> = { key, value, provenance, bytes, writtenAt: new Date().toISOString() };
       store.set(key, entry as CacheEntry<unknown>);
       return entry;
@@ -52,14 +55,47 @@ export function memoryCache(): Cache {
 }
 
 /**
- * Filesystem cache. Values are JSON; binary payloads should be written to
- * the artifact store and referenced by URI rather than inlined.
+ * Filesystem cache.
+ *
+ * The metadata of an entry is JSON; its binary payloads are not. Pixel
+ * buffers are written as content-addressed blobs beside the entry and
+ * referenced by hash — which is what the design law about immutable,
+ * content-addressed artifacts actually implies, and what stops a long
+ * render from dying on V8's maximum string length. Blobs dedupe across
+ * entries, so a repair that changes one frame does not rewrite the
+ * other three hundred.
+ *
+ * `FILM_CACHE_MAX_ENTRY_MB` caps a single entry. Over the cap the entry
+ * is kept in memory and not persisted: a cache miss on the next run
+ * costs time, and that is always the better trade against a crash.
  */
-export function fileCache(root: string): Cache {
+export function fileCache(root: string, options: { maxEntryMb?: number } = {}): Cache {
   mkdirSync(root, { recursive: true });
+  const maxEntryBytes =
+    (options.maxEntryMb ?? Number(process.env.FILM_CACHE_MAX_ENTRY_MB ?? 256)) * 1024 * 1024;
   const pathFor = (key: Hash): string => {
     const hex = key.replace(/^sha256:/, '');
     return join(root, hex.slice(0, 2), `${hex}.json`);
+  };
+  const blobPathFor = (ref: Hash): string => {
+    const hex = ref.replace(/^sha256:/, '');
+    return join(root, 'blobs', hex.slice(0, 2), `${hex}.bin`);
+  };
+  const putBlob = (bytes: Uint8Array): Hash => {
+    const ref = hashBytes(bytes);
+    const path = blobPathFor(ref);
+    // Content-addressed: identical bytes are written once.
+    if (!existsSync(path)) {
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, bytes);
+    }
+    return ref;
+  };
+  const getBlob = (ref: Hash): Uint8Array | undefined => {
+    const path = blobPathFor(ref);
+    if (!existsSync(path)) return undefined;
+    const buf = readFileSync(path);
+    return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
   };
   const mem = new Map<Hash, CacheEntry<unknown>>();
 
@@ -70,26 +106,48 @@ export function fileCache(root: string): Cache {
       const path = pathFor(key);
       if (!existsSync(path)) return undefined;
       try {
-        const entry = JSON.parse(readFileSync(path, 'utf8')) as CacheEntry<T>;
+        const stored = JSON.parse(readFileSync(path, 'utf8')) as CacheEntry<unknown>;
+        const entry: CacheEntry<T> = {
+          ...stored,
+          value: decodeArtifact(stored.value, getBlob) as T,
+        };
         mem.set(key, entry as CacheEntry<unknown>);
         return entry;
       } catch {
+        // A corrupt or truncated entry is a miss, never a crash and
+        // never a partially-decoded artifact handed to the pipeline.
         return undefined;
       }
     },
     set: <T,>(key: Hash, value: T, provenance: Provenance) => {
-      const path = pathFor(key);
-      mkdirSync(dirname(path), { recursive: true });
-      const body = stableStringify({ key, value, provenance });
+      const bytes = estimateBytes(value);
       const entry: CacheEntry<T> = {
         key,
         value,
         provenance,
-        bytes: Buffer.byteLength(body, 'utf8'),
+        bytes,
         writtenAt: new Date().toISOString(),
       };
-      writeFileSync(path, JSON.stringify(entry, null, 0));
       mem.set(key, entry as CacheEntry<unknown>);
+      if (bytes > maxEntryBytes) return entry;
+
+      const path = pathFor(key);
+      mkdirSync(dirname(path), { recursive: true });
+      try {
+        const encoded = encodeArtifact(value, putBlob);
+        writeFileSync(
+          path,
+          JSON.stringify(
+            { key, value: encoded, provenance, bytes, writtenAt: entry.writtenAt },
+            null,
+            0,
+          ),
+        );
+      } catch {
+        // Persisting is an optimisation. Failing to persist must not
+        // fail the run that produced the artifact.
+        if (existsSync(path)) rmSync(path);
+      }
       return entry;
     },
     has: (key) => mem.has(key) || existsSync(pathFor(key)),

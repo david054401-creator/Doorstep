@@ -26,7 +26,16 @@ import type { CheckResult, Locator } from '../core/result.ts';
 import { pass, fail, measure } from '../core/result.ts';
 import type { EvaluatedFrame } from '../animation/evaluate.ts';
 import { effectorPath, partAreaTrack } from '../animation/evaluate.ts';
-import { fitArc, mean, stddev, derivative, wrapAngle, clamp01, vdist } from '../core/math.ts';
+import {
+  fitArc,
+  splitAtReversals,
+  mean,
+  stddev,
+  derivative,
+  wrapAngle,
+  clamp01,
+  vdist,
+} from '../core/math.ts';
 import { classifyEase } from '../timing/easing.ts';
 import { sampleChannel, hitchFrames, evaluateChannel } from '../timing/curves.ts';
 import { measureLag, hasMotion } from '../animation/secondary.ts';
@@ -63,6 +72,14 @@ export type PrincipleOptions = {
    */
   primaryFrames?: readonly EvaluatedFrame[];
 };
+
+/**
+ * Options with every threshold resolved. `primaryFrames` stays optional:
+ * it is a second evaluation of the shot, not a threshold, and there is
+ * nothing sensible to default it to.
+ */
+export type ResolvedPrincipleOptions = Required<Omit<PrincipleOptions, 'primaryFrames'>> &
+  Pick<PrincipleOptions, 'primaryFrames'>;
 
 const D: Required<Omit<PrincipleOptions, 'primaryFrames'>> = {
   fps: DEFAULT_FPS,
@@ -117,7 +134,7 @@ export function validatePrinciples(
   const charById = new Map(project.characters.map((c) => [c.id, c]));
 
   out.push(...checkPoseToPose(shot, where));
-  out.push(...checkArcs(shot, performance, characterIds, cfg, where));
+  out.push(...checkArcs(shot, performance, characterIds, cfg, where, project));
   out.push(...checkVolume(shot, frames, characterIds, charById, cfg, where));
   out.push(...checkEases(shot, cfg, where));
   out.push(...checkAnticipation(shot, cfg, where));
@@ -188,6 +205,7 @@ function checkArcs(
   characterIds: readonly string[],
   cfg: Required<Omit<PrincipleOptions, 'primaryFrames'>>,
   where: Locator,
+  project: Pick<Project, 'characters'>,
 ): CheckResult[] {
   let worst = 1;
   let worstWhere: Locator = where;
@@ -206,33 +224,51 @@ function checkArcs(
           .map((k) => k.frame),
       ),
     ].sort((a, b) => a - b);
-    const bounds = [0, ...keyFrames, frames.length - 1].filter(
+    // Spans run from the start of the shot, or from one key, into the
+    // next key. The tail after the last key is a hold and a settle, not a
+    // move: checking the arc of a hold is a category error, and it is the
+    // only place this measure ever produced a finding no animator would
+    // recognise.
+    const bounds = [0, ...keyFrames].filter(
       (f, i, arr) => f >= 0 && f < frames.length && arr.indexOf(f) === i,
     );
+    if (keyFrames.length === 0) bounds.push(frames.length - 1);
     const out: [number, number][] = [];
     for (let i = 0; i < bounds.length - 1; i++) {
       if (bounds[i + 1] - bounds[i] >= 5) out.push([bounds[i], bounds[i + 1]]);
     }
-    return out.length ? out : [[0, frames.length - 1]];
+    return out;
   };
 
   for (const id of characterIds) {
     const spans = spansFor(id);
+    // An arc is a property of a move. Scale the bar by the character:
+    // a quarter of a head unit of travel is the least that can be called
+    // a gesture, and below it the "path" is a settle or a drift whose
+    // shape carries no intent and would only measure numerical noise.
+    const headPx =
+      project.characters.find((c) => c.id === id)?.modelSheet.construction.headHeightPx ?? 120;
+    const minTravel = Math.max(12, headPx * 0.3);
     for (const bone of EFFECTORS) {
       const full = effectorPath(frames, id, bone);
       if (full.length < 6) continue;
       for (const [from, to] of spans) {
         const path = full.slice(from, to + 1);
         if (path.length < 6) continue;
-        // Only judge stretches where the effector actually travelled; a bone
-        // that barely moves has no arc to speak of and would score noise.
-        const travel = path.reduce((a, p, i) => (i ? a + vdist(path[i - 1], p) : 0), 0);
-        if (travel < 12) continue;
-        measured++;
-        const fit = fitArc(path, 3);
-        if (fit.r2 < worst) {
-          worst = fit.r2;
-          worstWhere = { ...where, characterId: id, boneId: bone, frameRange: [from, to] };
+        // A reach that goes out and comes back is two arcs plus one
+        // deliberate change of direction. Judge each run separately.
+        for (const run of splitAtReversals(path)) {
+          if (run.length < 5) continue;
+          // Only judge stretches where the effector actually travelled; a
+          // bone that barely moves has no arc and would score noise.
+          const travel = run.reduce((a, p, i) => (i ? a + vdist(run[i - 1], p) : 0), 0);
+          if (travel < minTravel) continue;
+          measured++;
+          const fit = fitArc(run, 3);
+          if (fit.r2 < worst) {
+            worst = fit.r2;
+            worstWhere = { ...where, characterId: id, boneId: bone, frameRange: [from, to] };
+          }
         }
       }
     }
@@ -322,7 +358,7 @@ function checkVolume(
 
 // --- 6. Slow in and slow out ----------------------------------------------
 
-function checkEases(shot: Shot, cfg: Required<PrincipleOptions>, where: Locator): CheckResult[] {
+function checkEases(shot: Shot, cfg: ResolvedPrincipleOptions, where: Locator): CheckResult[] {
   const primary = shot.curves.filter(
     (c) => !c.additive && c.target.endsWith('.rotation') && c.keyframes.length >= 2,
   );
@@ -628,7 +664,7 @@ function checkSecondaryDuringHolds(
 
 // --- 9. Timing -------------------------------------------------------------
 
-function checkTiming(shot: Shot, cfg: Required<PrincipleOptions>, where: Locator): CheckResult[] {
+function checkTiming(shot: Shot, cfg: ResolvedPrincipleOptions, where: Locator): CheckResult[] {
   const offenders: { beat: string; frames: number; range: [number, number, number]; cls: string }[] = [];
   for (const beat of shot.beats) {
     const cls = actionClassFor(beat);

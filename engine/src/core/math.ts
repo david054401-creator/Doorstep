@@ -207,24 +207,67 @@ export function correlation(xs: readonly number[], ys: readonly number[]): numbe
 // curve fitting — used by the "Arcs" principle validator (R^2 >= 0.95)
 // ---------------------------------------------------------------------------
 
-/** Least-squares polynomial fit of degree `d`. Returns coefficients low→high. */
+/**
+ * Least-squares polynomial fit of degree `d`, returning coefficients
+ * low-to-high in the *original* x coordinates.
+ *
+ * Two details keep this honest. The abscissa is mapped to [-1, 1] before
+ * the normal equations are formed, because a Vandermonde system built on
+ * [0, 1] at degree three is already badly conditioned and the solve
+ * returns nonsense — a dead-straight path fitting with R-squared of zero.
+ * And a small ridge term is added to the diagonal, so a near-singular
+ * system degrades gracefully toward a lower-order fit rather than
+ * exploding.
+ */
 export function polyfit(xs: readonly number[], ys: readonly number[], d: number): number[] {
   const n = Math.min(xs.length, ys.length);
-  const m = d + 1;
-  if (n < m) return new Array(m).fill(0);
-  // Normal equations via Vandermonde, solved with Gaussian elimination.
+  // A degree-d fit needs comfortably more than d+1 samples to mean anything.
+  const degree = Math.max(1, Math.min(d, Math.floor((n - 1) / 2)));
+  const m = degree + 1;
+  if (n < m) return new Array(d + 1).fill(0);
+
+  const lo = Math.min(...xs.slice(0, n));
+  const hi = Math.max(...xs.slice(0, n));
+  const span = hi - lo;
+  const scale = span > EPS ? 2 / span : 1;
+  const shift = span > EPS ? -1 - lo * scale : 0;
+  const u = (x: number): number => x * scale + shift;
+
   const ata: number[][] = Array.from({ length: m }, () => new Array(m).fill(0));
   const atb: number[] = new Array(m).fill(0);
   for (let i = 0; i < n; i++) {
     const pows: number[] = new Array(m);
     pows[0] = 1;
-    for (let k = 1; k < m; k++) pows[k] = pows[k - 1] * xs[i];
+    for (let k = 1; k < m; k++) pows[k] = pows[k - 1] * u(xs[i]);
     for (let r = 0; r < m; r++) {
       atb[r] += pows[r] * ys[i];
       for (let c = 0; c < m; c++) ata[r][c] += pows[r] * pows[c];
     }
   }
-  return solveLinear(ata, atb);
+  let trace = 0;
+  for (let r = 0; r < m; r++) trace += ata[r][r];
+  const ridge = Math.max(1e-12, (trace / m) * 1e-9);
+  for (let r = 0; r < m; r++) ata[r][r] += ridge;
+
+  const inU = solveLinear(ata, atb);
+
+  // Convert back to the original variable: substitute u = scale*x + shift
+  // and expand, so callers can evaluate with polyval on raw x.
+  let out = new Array<number>(d + 1).fill(0);
+  for (let k = 0; k < m; k++) {
+    // (scale*x + shift)^k expanded by the binomial theorem.
+    for (let j = 0; j <= k; j++) {
+      out[j] += inU[k] * binomial(k, j) * scale ** j * shift ** (k - j);
+    }
+  }
+  if (out.some((v) => !Number.isFinite(v))) out = new Array(d + 1).fill(0);
+  return out;
+}
+
+function binomial(n: number, k: number): number {
+  let r = 1;
+  for (let i = 0; i < k; i++) r = (r * (n - i)) / (i + 1);
+  return r;
 }
 
 export function polyval(coeffs: readonly number[], x: number): number {
@@ -336,6 +379,59 @@ export function fitArc(rawPoints: readonly Vec2[], degree = 3): ArcFit {
   const r2 = ssTot < EPS ? 1 : clamp01(1 - ssRes / ssTot);
   const chord = vdist(points[0], points[points.length - 1]);
   return { r2, pathLength: total, maxResidual, straightness: clamp01(chord / total) };
+}
+
+/**
+ * Split a path at direction reversals.
+ *
+ * A hand that reaches out and comes back has traced two arcs, not one bad
+ * one. Fitting a single curve across both measures the reversal — which
+ * is deliberate animation — as a defect. Each run between reversals is
+ * returned separately so it can be judged on its own terms.
+ *
+ * `reversalAngle` is how sharp a turn has to be to count; the default of
+ * two radians (about 115 degrees) catches a genuine change of direction
+ * without splitting on the ordinary curvature of an arc.
+ */
+export function splitAtReversals(
+  points: readonly Vec2[],
+  reversalAngle = 2.0,
+): Vec2[][] {
+  if (points.length < 4) return [[...points]];
+  const runs: Vec2[][] = [];
+  let current: Vec2[] = [points[0]];
+  for (let i = 1; i < points.length - 1; i++) {
+    current.push(points[i]);
+    const a = vsub(points[i], points[i - 1]);
+    const b = vsub(points[i + 1], points[i]);
+    const la = vlen(a);
+    const lb = vlen(b);
+    // Sub-pixel steps have meaningless direction; do not split on noise.
+    if (la < 0.35 || lb < 0.35) continue;
+    const cosTheta = clamp(vdot(a, b) / (la * lb), -1, 1);
+    if (Math.acos(cosTheta) >= reversalAngle) {
+      runs.push(current);
+      current = [points[i]];
+    }
+  }
+  current.push(points[points.length - 1]);
+  runs.push(current);
+  return runs.filter((r) => r.length >= 3);
+}
+
+/** Largest turning angle along a path, ignoring sub-pixel steps. */
+export function maxTurnAngle(points: readonly Vec2[]): number {
+  let worst = 0;
+  for (let i = 1; i < points.length - 1; i++) {
+    const a = vsub(points[i], points[i - 1]);
+    const b = vsub(points[i + 1], points[i]);
+    const la = vlen(a);
+    const lb = vlen(b);
+    if (la < 0.35 || lb < 0.35) continue;
+    const t = Math.acos(clamp(vdot(a, b) / (la * lb), -1, 1));
+    if (t > worst) worst = t;
+  }
+  return worst;
 }
 
 /** Cubic Bezier evaluation. */

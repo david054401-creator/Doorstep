@@ -14,7 +14,7 @@
  */
 
 import type { ImageBuffer } from '../../raster/buffer.ts';
-import { luminanceMap, edgeMap, getPixel, resize, flatten } from '../../raster/buffer.ts';
+import { luminanceMap, edgeMap, alphaMap, getPixel, resize, flatten } from '../../raster/buffer.ts';
 import { mean, clamp01, clamp } from '../../core/math.ts';
 import { rgbToLab, deltaE2000 } from '../../core/color.ts';
 
@@ -182,6 +182,13 @@ export function opticalFlow(
     const A = pa[l];
     const B = pb[l];
     const half = Math.floor(win / 2);
+    // Sampling with clamped coordinates is not a nicety here. The window
+    // runs from y = half, so dy = -half reads row -1 and dy = +half at the
+    // last row reads row h: raw indexing returns `undefined`, the gradient
+    // becomes NaN, and because `Math.abs(NaN) < 1e-8` is false the guard
+    // below waves it straight through into the flow field.
+    const at = (data: Float32Array, x: number, y: number): number =>
+      data[clamp(Math.round(y), 0, h - 1) * w + clamp(Math.round(x), 0, w - 1)];
     for (let iter = 0; iter < iterations; iter++) {
       for (let y = half; y < h - half; y++) {
         for (let x = half; x < w - half; x++) {
@@ -195,13 +202,12 @@ export function opticalFlow(
             for (let dx = -half; dx <= half; dx++) {
               const px = x + dx;
               const py = y + dy;
-              const j = py * w + px;
-              const ix = (A[j + 1] - A[j - 1]) / 2;
-              const iy = (A[j + w] - A[j - w]) / 2;
+              const ix = (at(A, px + 1, py) - at(A, px - 1, py)) / 2;
+              const iy = (at(A, px, py + 1) - at(A, px, py - 1)) / 2;
               const wx = clamp(px + u[i], 0, w - 1);
               const wy = clamp(py + v[i], 0, h - 1);
               const bval = bilinear(B, w, h, wx, wy);
-              const it = bval - A[j];
+              const it = bval - at(A, px, py);
               sxx += ix * ix;
               syy += iy * iy;
               sxy += ix * iy;
@@ -346,75 +352,248 @@ export function perceptualDistance(a: ImageBuffer, b: ImageBuffer): number {
 /**
  * Identity descriptor.
  *
- * A compact, deterministic feature vector: a coarse CIELAB colour
- * histogram, an oriented-gradient histogram over a spatial grid, and
- * normalised shape moments. Cosine similarity between two descriptors is
- * the identity metric the gate uses when no learned embedding provider is
- * configured — and it is labelled as such, never passed off as DINOv2.
+ * A compact, deterministic feature vector in three blocks: oriented
+ * gradient structure, a CIELAB colour histogram, and scale-free shape
+ * moments. Cosine similarity between two descriptors is the identity
+ * metric the gate uses when no learned embedding provider is configured —
+ * and it is labelled as such, never passed off as DINOv2.
+ *
+ * Three properties matter more than the exact choice of features:
+ *
+ * 1. **The grid is anchored on the subject, not on the frame.** Identity
+ *    is who the character is, not where they stand. The spatial grid is
+ *    centred on the support centroid and sized by the support radius, so
+ *    a character who walks four pixels left is still the same character.
+ *    An absolute frame grid fails that test outright.
+ * 2. **Binning is soft.** Hard cell and orientation assignment puts a
+ *    cliff at every bin boundary, and a sub-cell shift dumps a block of
+ *    energy across it. Trilinear interpolation over the two cell axes and
+ *    the orientation axis removes the cliff.
+ * 3. **Blocks are normalised and weighted explicitly.** Concatenating raw
+ *    features lets whichever block happens to carry the largest numbers
+ *    decide the metric — and the block that dominated here was the one
+ *    carrying no identity information at all.
  */
-export function identityDescriptor(img: ImageBuffer, gridSize = 4, orientations = 8): number[] {
-  const flat = flatten(img, { r: 255, g: 255, b: 255 });
-  const small = resize(flat, 64, 64);
-  const lum = luminanceMap(small);
-  const w = 64;
-  const h = 64;
-  const cellW = w / gridSize;
-  const cellH = h / gridSize;
+export const IDENTITY_BLOCK_WEIGHTS = { structure: 0.55, colour: 0.33, shape: 0.12 };
 
-  // Oriented gradient histogram per cell.
+/** Working resolution for the descriptor. Fixed so it is resolution-free. */
+const DESCRIPTOR_SIZE = 64;
+
+export function identityDescriptor(img: ImageBuffer, gridSize = 4, orientations = 8): number[] {
+  const size = DESCRIPTOR_SIZE;
+  const small = resize(img, size, size);
+  const opaque = flatten(small, { r: 255, g: 255, b: 255 });
+  const lum = luminanceMap(opaque);
+  const alpha = alphaMap(small);
+
+  const at = (data: Float32Array, x: number, y: number): number =>
+    data[clamp(y, 0, size - 1) * size + clamp(x, 0, size - 1)];
+  const gradient = (x: number, y: number): { gx: number; gy: number } => ({
+    gx: (at(lum, x + 1, y) - at(lum, x - 1, y)) / 2,
+    gy: (at(lum, x, y + 1) - at(lum, x, y - 1)) / 2,
+  });
+
+  // Support — where the subject is.
+  //
+  // On an isolated character plate that is the alpha channel, which is why
+  // the identity check renders plates on transparency. On a flattened
+  // frame nothing is transparent, so fall back to gradient energy: it
+  // picks out the drawing and ignores flat paper.
+  let alphaMass = 0;
+  for (let i = 0; i < alpha.length; i++) alphaMass += alpha[i];
+  const isolated = alphaMass < 0.98 * alpha.length;
+  const support = new Float32Array(size * size);
+  if (isolated) {
+    support.set(alpha);
+  } else {
+    let peak = 0;
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const { gx, gy } = gradient(x, y);
+        const m = Math.hypot(gx, gy);
+        support[y * size + x] = m;
+        if (m > peak) peak = m;
+      }
+    }
+    if (peak > 1e-6) for (let i = 0; i < support.length; i++) support[i] /= peak;
+  }
+
+  // Centroid and radius of the support, which place and size the grid.
+  let mass = 0;
+  let sx = 0;
+  let sy = 0;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const s = support[y * size + x];
+      if (s <= 0) continue;
+      mass += s;
+      sx += s * x;
+      sy += s * y;
+    }
+  }
+  const cx = mass > 0 ? sx / mass : size / 2;
+  const cy = mass > 0 ? sy / mass : size / 2;
+  let mxx = 0;
+  let myy = 0;
+  let mxy = 0;
+  let m4 = 0;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const s = support[y * size + x];
+      if (s <= 0) continue;
+      const dx = x - cx;
+      const dy = y - cy;
+      mxx += s * dx * dx;
+      myy += s * dy * dy;
+      mxy += s * dx * dy;
+      m4 += s * (dx * dx + dy * dy) ** 2;
+    }
+  }
+  if (mass > 0) {
+    mxx /= mass;
+    myy /= mass;
+    mxy /= mass;
+    m4 /= mass;
+  }
+  const radius = Math.sqrt(Math.max(1, mxx + myy));
+  // 1.5 sigma covers a filled silhouette with margin without letting a
+  // single stray speck of support inflate the window.
+  const extent = clamp(radius * 1.5, size / 8, size);
+  const cellSize = (2 * extent) / gridSize;
+
+  // Oriented gradient histogram, trilinear over (cell x, cell y, angle).
   const hog = new Array<number>(gridSize * gridSize * orientations).fill(0);
-  for (let y = 1; y < h - 1; y++) {
-    for (let x = 1; x < w - 1; x++) {
-      const i = y * w + x;
-      const gx = lum[i + 1] - lum[i - 1];
-      const gy = lum[i + w] - lum[i - w];
-      const mag = Math.hypot(gx, gy);
-      if (mag < 1e-4) continue;
+  const addHog = (gx: number, gy: number, ob: number, weight: number): void => {
+    if (weight <= 0) return;
+    if (gx < -0.5 || gx > gridSize - 0.5 || gy < -0.5 || gy > gridSize - 0.5) return;
+    const x0 = Math.floor(gx);
+    const y0 = Math.floor(gy);
+    const o0 = Math.floor(ob);
+    const tx = gx - x0;
+    const ty = gy - y0;
+    const to = ob - o0;
+    for (let i = 0; i <= 1; i++) {
+      const cxi = x0 + i;
+      if (cxi < 0 || cxi >= gridSize) continue;
+      const wx = i === 0 ? 1 - tx : tx;
+      for (let j = 0; j <= 1; j++) {
+        const cyi = y0 + j;
+        if (cyi < 0 || cyi >= gridSize) continue;
+        const wy = j === 0 ? 1 - ty : ty;
+        for (let k = 0; k <= 1; k++) {
+          // Orientation is unsigned, so the bin axis wraps at pi.
+          const oi = (((o0 + k) % orientations) + orientations) % orientations;
+          const wo = k === 0 ? 1 - to : to;
+          hog[(cyi * gridSize + cxi) * orientations + oi] += weight * wx * wy * wo;
+        }
+      }
+    }
+  };
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const s = support[y * size + x];
+      if (s <= 0.02) continue;
+      const { gx, gy } = gradient(x, y);
+      const magnitude = Math.hypot(gx, gy);
+      if (magnitude < 1e-4) continue;
       let angle = Math.atan2(gy, gx);
-      if (angle < 0) angle += Math.PI; // unsigned orientation
-      const bin = Math.min(orientations - 1, Math.floor((angle / Math.PI) * orientations));
-      const cx = Math.min(gridSize - 1, Math.floor(x / cellW));
-      const cy = Math.min(gridSize - 1, Math.floor(y / cellH));
-      hog[(cy * gridSize + cx) * orientations + bin] += mag;
+      if (angle < 0) angle += Math.PI;
+      if (angle >= Math.PI) angle -= Math.PI;
+      addHog(
+        (x - (cx - extent)) / cellSize - 0.5,
+        (y - (cy - extent)) / cellSize - 0.5,
+        (angle / Math.PI) * orientations - 0.5,
+        magnitude * s,
+      );
     }
   }
 
-  // Coarse CIELAB histogram, which carries the character's colour identity.
+  // Coarse CIELAB histogram, which carries the character's colour
+  // identity. Soft-binned for the same reason as the gradients, and
+  // weighted by support so the background does not vote.
   const bins = 4;
   const colour = new Array<number>(bins * bins * bins).fill(0);
-  let opaque = 0;
-  for (let y = 0; y < img.height; y += 2) {
-    for (let x = 0; x < img.width; x += 2) {
-      const p = getPixel(img, x, y);
+  let colourMass = 0;
+  const addColour = (l: number, a: number, b: number, weight: number): void => {
+    const f = [l, a, b];
+    const base = f.map((t) => Math.floor(t));
+    const frac = f.map((t, i) => t - base[i]);
+    for (let i = 0; i <= 1; i++) {
+      const li = base[0] + i;
+      if (li < 0 || li >= bins) continue;
+      const wl = i === 0 ? 1 - frac[0] : frac[0];
+      for (let j = 0; j <= 1; j++) {
+        const ai = base[1] + j;
+        if (ai < 0 || ai >= bins) continue;
+        const wa = j === 0 ? 1 - frac[1] : frac[1];
+        for (let k = 0; k <= 1; k++) {
+          const bi = base[2] + k;
+          if (bi < 0 || bi >= bins) continue;
+          const wb = k === 0 ? 1 - frac[2] : frac[2];
+          colour[(li * bins + ai) * bins + bi] += weight * wl * wa * wb;
+        }
+      }
+    }
+  };
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const p = getPixel(small, x, y);
       if (p.a < 0.5) continue;
-      opaque++;
+      // Inside the subject window, and weighted by how much of the subject
+      // is actually here. A flat background outside the window is not
+      // part of who this character is.
+      if (Math.abs(x - cx) > extent || Math.abs(y - cy) > extent) continue;
+      const s = isolated ? p.a : Math.max(support[y * size + x], 0.15);
       const lab = rgbToLab(p);
-      const li = Math.min(bins - 1, Math.floor((lab.L / 100) * bins));
-      const ai = Math.min(bins - 1, Math.floor(((lab.a + 100) / 200) * bins));
-      const bi = Math.min(bins - 1, Math.floor(((lab.b + 100) / 200) * bins));
-      colour[(li * bins + ai) * bins + bi]++;
+      colourMass += s;
+      addColour(
+        clamp((lab.L / 100) * bins - 0.5, 0, bins - 1),
+        clamp(((lab.a + 100) / 200) * bins - 0.5, 0, bins - 1),
+        clamp(((lab.b + 100) / 200) * bins - 0.5, 0, bins - 1),
+        s,
+      );
     }
   }
 
-  // Normalised shape moments from the alpha channel.
-  let m00 = 0;
-  let m10 = 0;
-  let m01 = 0;
-  for (let y = 0; y < img.height; y++) {
-    for (let x = 0; x < img.width; x++) {
-      const a = img.data[(y * img.width + x) * 4 + 3] / 255;
-      if (a < 0.5) continue;
-      m00 += 1;
-      m10 += x;
-      m01 += y;
-    }
-  }
-  const cx = m00 > 0 ? m10 / m00 / Math.max(1, img.width) : 0.5;
-  const cy = m00 > 0 ? m01 / m00 / Math.max(1, img.height) : 0.5;
-  const fill = m00 / Math.max(1, img.width * img.height);
+  // Shape, as scale- and translation-free moments of the support.
+  //
+  // The old descriptor put the centroid and the frame coverage here, both
+  // of which say where the character is standing and how close the camera
+  // is — placement, not identity — and between them they carried more of
+  // the vector's length than the gradients and colour combined.
+  const trace = mxx + myy;
+  const shape = trace > 1e-6
+    ? [
+        (mxx - myy) / trace,
+        (2 * mxy) / trace,
+        // Fourth moment against the square of the second: flat for a disc,
+        // high for a subject with distant limbs.
+        clamp(m4 / (trace * trace), 0, 4) / 4,
+        // How densely the support fills its own window.
+        clamp01(mass / Math.max(1, 4 * extent * extent)),
+      ]
+    : [0, 0, 0, 0];
 
-  const vec = [...l2(hog), ...l1(colour, opaque), cx, cy, fill];
+  const vec = [
+    ...scaleBlock(l2hys(hog), IDENTITY_BLOCK_WEIGHTS.structure),
+    ...scaleBlock(l2(l1(colour, colourMass)), IDENTITY_BLOCK_WEIGHTS.colour),
+    ...scaleBlock(l2(shape), IDENTITY_BLOCK_WEIGHTS.shape),
+  ];
   return l2(vec);
+}
+
+function scaleBlock(v: readonly number[], weight: number): number[] {
+  return v.map((x) => x * weight);
+}
+
+/**
+ * L2-Hys: normalise, clip, renormalise. The clip stops one very strong
+ * edge — a black outline against paper — from swamping every softer
+ * gradient in the same cell.
+ */
+function l2hys(v: readonly number[], clip = 0.2): number[] {
+  const n = l2(v);
+  return l2(n.map((x) => Math.min(x, clip)));
 }
 
 function l2(v: readonly number[]): number[] {

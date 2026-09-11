@@ -107,12 +107,24 @@ export function graphemesToPhonemes(word: string): string[] {
     }
     if (!matched) rest = rest.slice(1);
   }
-  // A silent trailing 'e' does not get its own shape.
-  if (word.length > 2 && /e$/i.test(word) && out.length > 1 && out[out.length - 1] === 'EH') {
+  // A silent trailing 'e' does not get its own shape — but only when the
+  // word already has a vowel before it. "make" and "time" end silently;
+  // "the" and "be" do not, and dropping their vowel leaves a mouth that
+  // never opens.
+  const hasEarlierVowel = out
+    .slice(0, -1)
+    .some((p) => /^(AA|AE|AH|AO|AW|AY|EH|ER|EY|IH|IY|OW|OY|UH|UW)$/.test(p));
+  if (word.length > 3 && /e$/i.test(word) && hasEarlierVowel && out[out.length - 1] === 'EH') {
     out.pop();
   }
   return out.length ? out : ['AH'];
 }
+
+/**
+ * Mouth shapes that must never be dropped, however short.
+ * A closes the lips (M, B, P); F puts the teeth on the lip (F, V).
+ */
+export const PROTECTED_VISEMES: ReadonlySet<Viseme> = new Set<Viseme>(['A', 'F']);
 
 export type PhonemeSpan = { phoneme: string; startFrame: number; endFrame: number };
 export type VisemeSpan = { viseme: Viseme; startFrame: number; endFrame: number };
@@ -146,17 +158,37 @@ export function phonemeTimeline(
 
   const totalWeight = units.reduce((a, u) => a + u.weight, 0);
   if (totalWeight <= 0) return [];
+
+  // Allocate whole frames, exactly.
+  //
+  // Spans must tile the line with no gaps and no overlaps, or the viseme
+  // track built from them contradicts the phonemes it came from and the
+  // sync check reports drift that is really an accounting error. Frames
+  // are handed out by largest remainder; when a line has more phonemes
+  // than frames some get nothing, which is honest — you cannot articulate
+  // thirteen mouth shapes in fourteen frames at 24fps.
+  const exact = units.map((u) => (u.weight / totalWeight) * durationFrames);
+  const whole = exact.map(Math.floor);
+  let remaining = Math.round(durationFrames) - whole.reduce((a, b) => a + b, 0);
+  const order = exact
+    .map((v, i) => ({ i, frac: v - Math.floor(v) }))
+    .sort((a, b) => b.frac - a.frac);
+  for (const { i } of order) {
+    if (remaining <= 0) break;
+    whole[i]++;
+    remaining--;
+  }
+
   const spans: PhonemeSpan[] = [];
-  let cursor = startFrame;
-  for (const u of units) {
-    const span = (u.weight / totalWeight) * durationFrames;
-    const end = cursor + span;
+  let cursor = Math.round(startFrame);
+  for (let i = 0; i < units.length; i++) {
+    if (whole[i] <= 0) continue;
     spans.push({
-      phoneme: u.phoneme,
-      startFrame: Math.round(cursor),
-      endFrame: Math.max(Math.round(cursor) + 1, Math.round(end)),
+      phoneme: units[i].phoneme,
+      startFrame: cursor,
+      endFrame: cursor + whole[i],
     });
-    cursor = end;
+    cursor += whole[i];
   }
   return spans;
 }
@@ -195,7 +227,13 @@ export function phonemesToVisemes(
     for (const span of merged) {
       const len = span.endFrame - span.startFrame;
       const last = absorbed[absorbed.length - 1];
-      if (len < minHoldFrames && last) {
+      // Some shapes carry the word and must survive even one frame long.
+      // A bilabial that does not close the lips turns "hum" into
+      // something the audience can see is wrong, and a teeth-on-lip F is
+      // just as conspicuous. Everything else may be absorbed to stop the
+      // mouth flickering.
+      const salient = PROTECTED_VISEMES.has(span.viseme);
+      if (len < minHoldFrames && last && !salient) {
         last.endFrame = span.endFrame;
         continue;
       }
@@ -235,29 +273,45 @@ export function visemeAt(lines: readonly Line[], frame: number): Viseme {
 }
 
 /**
- * Measured offset between a viseme track and its phoneme track, in frames.
- * Hard invariant 9 requires this to stay within two frames at 24fps.
+ * Measured sync drift between a viseme track and its phoneme track.
+ *
+ * What this measures is *timing*: for each phoneme that got a shape, how
+ * far is that shape from where the sound is. What it deliberately does
+ * not measure is simplification. A line with more phonemes than frames
+ * cannot give each one its own mouth position — at 24fps a shape needs
+ * at least a frame — and charging for those would be measuring the frame
+ * rate rather than the sync.
+ *
+ * The exception is a mouth shape the audience can see is missing. A
+ * bilabial that never closes the lips is a defect however short it was,
+ * so a dropped protected shape is charged in full.
  */
 export function lipsyncOffset(line: Line): number {
   if (!line.phonemes?.length || !line.visemes?.length) return 0;
+  const present = new Set(line.visemes.map((v) => v.viseme));
   let worst = 0;
+
   for (const p of line.phonemes) {
     if (p.phoneme === 'SIL') continue;
     const expected = PHONEME_TO_VISEME[p.phoneme] ?? 'B';
-    // Find the viseme span covering this phoneme's midpoint.
     const mid = (p.startFrame + p.endFrame) / 2;
-    const span = line.visemes.find((v) => mid >= v.startFrame && mid < v.endFrame);
-    if (!span) {
-      worst = Math.max(worst, 3);
+
+    if (!present.has(expected)) {
+      // Absorbed into a neighbour. Only a shape the eye would miss counts.
+      if (PROTECTED_VISEMES.has(expected)) worst = Math.max(worst, 3);
       continue;
     }
-    if (span.viseme !== expected) {
-      // Measure how far away the nearest correct shape is.
-      const nearest = line.visemes
-        .filter((v) => v.viseme === expected)
-        .map((v) => Math.min(Math.abs(v.startFrame - mid), Math.abs(v.endFrame - mid)));
-      worst = Math.max(worst, nearest.length ? Math.min(...nearest) : 3);
+    // Distance from the sound to the nearest occurrence of its shape.
+    let nearest = Infinity;
+    for (const v of line.visemes) {
+      if (v.viseme !== expected) continue;
+      if (mid >= v.startFrame && mid < v.endFrame) {
+        nearest = 0;
+        break;
+      }
+      nearest = Math.min(nearest, Math.abs(v.startFrame - mid), Math.abs(v.endFrame - mid));
     }
+    if (Number.isFinite(nearest)) worst = Math.max(worst, nearest);
   }
   return worst;
 }
