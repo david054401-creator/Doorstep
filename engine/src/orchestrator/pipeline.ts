@@ -44,7 +44,7 @@ import { validatePaletteConformance, validateValueStructure, validateBibleConfor
 import { validateLipsync } from '../audio/validators.ts';
 import { buildCueSheet } from '../audio/cue-sheet.ts';
 import { allShots } from '../story/script-to-shots.ts';
-import { frameGroup, staticCurve } from '../render/camera.ts';
+import { frameGroup, staticCurve, SHOT_SIZE_COVERAGE } from '../render/camera.ts';
 import { planShots, DEFAULT_POLICY } from './budget.ts';
 import type { ProducerPolicy } from './budget.ts';
 import type { Logger } from '../core/log.ts';
@@ -422,6 +422,51 @@ export function buildPipeline(project: Project, options: PipelineOptions = {}): 
 }
 
 /** Frame the shot on its subjects before anything else reads the camera. */
+/**
+ * The world y of the horizon, read from the layout's ground plane.
+ *
+ * The ground block is a band that starts at the horizon and runs off the
+ * bottom of the world, so its top edge is the horizon by construction.
+ */
+export function environmentHorizon(environment: Environment | undefined): number | null {
+  const block = environment?.layout.blocks.find((b) => /ground|floor|plane/i.test(`${b.id} ${b.name}`));
+  const ys = block?.contours.flat().map((p) => p.y) ?? [];
+  return ys.length ? Math.min(...ys) : null;
+}
+
+/**
+ * Frame a shot that has no cast on the environment instead: the shot
+ * size sets how much world is in view, and the layout's horizon lands
+ * where the layout says it should.
+ */
+export function frameOnEnvironment(
+  shot: Shot,
+  project: Project,
+  width: number,
+  height: number,
+  environment?: Environment,
+): Shot {
+  if (shot.camera.move.keys.length > 1) return shot;
+  const horizon = environmentHorizon(environment);
+  if (horizon === null) return shot;
+
+  // World scale is set by the cast even when none of them is in shot.
+  const reference = project.characters[0]?.modelSheet.construction;
+  const subjectHeight = reference ? reference.headHeightPx * reference.headUnits : 400;
+  const worldHeight = subjectHeight * SHOT_SIZE_COVERAGE[shot.camera.size];
+  const zoom = height / worldHeight;
+  const horizonScreenY = (environment?.layout.horizonY ?? 0.33) * height;
+  const positionY = horizon - (horizonScreenY - height / 2) / zoom;
+
+  return {
+    ...shot,
+    camera: {
+      ...shot.camera,
+      move: staticCurve({ position: { x: 0, y: positionY }, zoom, rotation: 0 }),
+    },
+  };
+}
+
 export function withFraming(
   shot: Shot,
   project: Project,
@@ -430,7 +475,15 @@ export function withFraming(
   environment?: Environment,
 ): Shot {
   const first = shot.staging.characters[0];
-  if (!first) return shot;
+  if (!first) {
+    // A shot with no cast still has to be framed. Returning it unchanged
+    // left the establisher on a zoom-1 camera centred on the world
+    // origin — which is the ground at the cast's feet, so the shot that
+    // is supposed to show the audience where they are showed them a
+    // patch of grass with the sky, the hills and the hero tree all
+    // outside the frame.
+    return frameOnEnvironment(shot, project, width, height, environment);
+  }
   const character = project.characters.find((c) => c.id === first.characterId);
   const headPx = character?.modelSheet.construction.headHeightPx ?? 120;
   const units = character?.modelSheet.construction.headUnits ?? 3;

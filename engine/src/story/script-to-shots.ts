@@ -99,9 +99,27 @@ export function chooseShotSize(options: {
   previous?: ShotSize;
   /** Sizes already used in this scene, so coverage keeps opening up. */
   used?: readonly ShotSize[];
+  /**
+   * The shot contains locomotion, a jump or a landing — whole-body
+   * action that a close size throws away.
+   */
+  needsBody?: boolean;
 }): ShotSize {
   if (options.isEstablishing) return 'els';
   if (options.characterCount >= 2 && !options.hasDialogue) return 'twoShot';
+
+  // Whole-body action outranks dialogue when choosing a size. A line
+  // spoken while running does not make it a dialogue shot: cut a run in
+  // medium close-up and the audience gets a head bobbing against the
+  // sky while every frame of leg work happens off screen.
+  if (options.needsBody) {
+    const wide: ShotSize[] = ['ls', 'mls', 'ms'];
+    return (
+      wide.find((c) => c !== options.previous && !new Set(options.used ?? []).has(c)) ??
+      wide.find((c) => c !== options.previous) ??
+      'mls'
+    );
+  }
 
   // Candidates in order of how well they serve this beat. Alternating
   // between two sizes satisfies "never repeat the last one" and still
@@ -268,6 +286,9 @@ export function scriptToSequence(
         characterCount: subjects.length,
         previous: shots[shots.length - 1]?.camera.size,
         used: shots.map((x) => x.camera.size),
+        needsBody: beats.some((b) =>
+          ['walkCycle', 'runCycle', 'jump', 'land'].includes(actionClassFor(b)),
+        ),
       });
 
       const staging = buildStaging(subjects.map(charId), idx);

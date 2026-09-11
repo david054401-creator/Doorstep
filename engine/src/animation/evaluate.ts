@@ -14,6 +14,7 @@ import type {
   Viseme,
   ViewName,
   Placement,
+  Rig,
 } from '../graph/types.ts';
 import type { Pose } from '../rig/skeleton.ts';
 import { evaluateStack, channelTargets } from '../timing/curves.ts';
@@ -24,7 +25,7 @@ import { resolveSwaps } from './idle.ts';
 import { poseRig, prepareRig, defaultSwaps } from '../rig/rig.ts';
 import type { PreparedRig, PosedRig } from '../rig/rig.ts';
 import { evaluateCamera, cameraMatrix, parallaxFor } from '../render/camera.ts';
-import type { Scene as DrawScene, DrawLayer } from '../render/scene.ts';
+import type { Scene as DrawScene, DrawLayer, DrawShape } from '../render/scene.ts';
 import { emptyScene } from '../render/scene.ts';
 import { parseHex } from '../core/color.ts';
 import type { NamedSwatch, RGB } from '../core/color.ts';
@@ -199,12 +200,84 @@ export function evaluateShot(
         zBase: Math.round(placement.depth * 1000),
       });
       characters.set(character.id, { posed, pose, view: placement.view, swaps });
+
+      // Contact shadow.
+      //
+      // Without one a cut-out character hovers over the ground no matter
+      // how well the feet are animated — there is nothing in the image
+      // saying where the body meets the plane. The ellipse tracks the
+      // feet, so it moves with a step and tightens as the character
+      // lifts, which is most of what a contact shadow has to do.
+      const shadow = contactShadow(posed, placement, character.rig);
+      if (shadow) {
+        scene.layers.push({
+          id: `shadow_${character.id}`,
+          kind: 'fx',
+          z: 499 + Math.round(placement.depth * 100),
+          shapes: [shadow],
+          images: [],
+          opacity: 0.28,
+          blend: 'multiply',
+          blur: 2.5,
+          ownerId: character.id,
+        });
+      }
       scene.layers.push({ ...posed.layer, z: 500 + Math.round(placement.depth * 100) });
     }
 
     frames.push({ frame: f, characters, scene });
   }
   return frames;
+}
+
+/**
+ * An ellipse under the feet, in screen space.
+ *
+ * It is derived from the posed skeleton rather than from the placement,
+ * so it sits where the character actually is: the lowest foot sets the
+ * ground line, the span between the feet sets the width, and the
+ * distance the body has lifted off that line shrinks and fades it.
+ */
+function contactShadow(
+  posed: ReturnType<typeof poseRig>,
+  placement: Placement,
+  rig: Rig,
+): DrawShape | null {
+  const feet = ['L_foot', 'R_foot']
+    .map((id) => posed.posed.bones.get(id)?.tail)
+    .filter((p): p is Vec2 => !!p);
+  if (feet.length === 0) return null;
+
+  const toScreen = placementTransform(placement);
+  const screenFeet = feet.map(toScreen);
+  const groundY = toScreen({ x: 0, y: 0 }).y;
+  const lowest = Math.max(...screenFeet.map((p) => p.y));
+  const centreX = screenFeet.reduce((a, p) => a + p.x, 0) / screenFeet.length;
+  const span = screenFeet.length > 1 ? Math.abs(screenFeet[0].x - screenFeet[1].x) : 0;
+
+  const headPx = rig.headUnitPx * placement.scale;
+  // How far off the ground the nearest foot is, in head units.
+  const lift = Math.max(0, (groundY - lowest) / Math.max(1, headPx));
+  if (lift > 1.2) return null;
+  const tighten = 1 / (1 + lift * 1.6);
+  const rx = (span / 2 + headPx * 0.42) * tighten;
+  const ry = headPx * 0.17 * tighten;
+  if (rx < 1 || ry < 0.5) return null;
+
+  const contour: Vec2[] = [];
+  for (let i = 0; i < 28; i++) {
+    const a = (i / 28) * Math.PI * 2;
+    contour.push({ x: centreX + Math.cos(a) * rx, y: groundY + Math.sin(a) * ry });
+  }
+  return {
+    id: `shadow_${placement.characterId}`,
+    contours: [contour],
+    fill: { r: 26, g: 40, b: 22 },
+    fillAlpha: 1,
+    z: 0,
+    tag: 'contactShadow',
+    ownerId: placement.characterId,
+  };
 }
 
 function placementTransform(placement: Placement): (p: Vec2) => Vec2 {

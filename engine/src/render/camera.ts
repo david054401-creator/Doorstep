@@ -35,8 +35,13 @@ export const SHOT_SIZE_EYELINE: Record<ShotSize, number> = {
   mcu: 0.33,
   ms: 0.3,
   mls: 0.28,
-  ls: 0.3,
-  els: 0.35,
+  // A long shot is a full-figure shot, and the eyes have to sit high
+  // enough in frame for the feet to land inside it. At 0.3 a 3.8-head
+  // character's feet fell about twenty pixels below the bottom edge,
+  // which is exactly the wrong twenty pixels in a shot of someone
+  // running.
+  ls: 0.2,
+  els: 0.3,
   ots: 0.34,
   twoShot: 0.32,
 };

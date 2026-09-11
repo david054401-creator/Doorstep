@@ -26,14 +26,32 @@ export const MIBO_PALETTE: NamedSwatch[] = [
   { name: 'pip.body.shade', hex: '#A29ECC', role: 'PIP body shadow', tolerance: 3 },
   { name: 'pip.belly', hex: '#E3E4F6', role: 'PIP belly', tolerance: 3 },
   { name: 'pip.belly.shade', hex: '#C4C5DB', role: 'PIP belly shadow', tolerance: 3 },
-  { name: 'sky.day', hex: '#88B2C1', role: 'daytime sky', tolerance: 4 },
+  // The value ladder, near to far: foreground grass 30, hero tree 27,
+  // meadow tufts 36, near ground 42, mid bushes 56, mid hills 58,
+  // far hills 66, sky 78.
+  // Aerial perspective runs the distance lighter and the foreground
+  // darker, so a character at L* 77 separates from the plane they stand
+  // on by thirty L* and from the hills behind their head by nineteen —
+  // and never sits against the sky, which is why the horizon is above
+  // the top of their ears. Three L* of that separation was spent
+  // lightening the ground and had to be given back: the check measures
+  // the character's median against the background's, and the median of
+  // a cel character sits well below its base fill.
+  { name: 'sky.day', hex: '#A9C7D6', role: 'daytime sky', tolerance: 4 },
   { name: 'sky.dusk', hex: '#BC8C61', role: 'dusk sky', tolerance: 4 },
-  { name: 'hill.far', hex: '#6C9663', role: 'far hills', tolerance: 4 },
-  { name: 'hill.mid', hex: '#4D8446', role: 'mid hills', tolerance: 4 },
-  { name: 'ground.near', hex: '#387233', role: 'near ground', tolerance: 4 },
+  { name: 'hill.far', hex: '#7FA98C', role: 'far hills', tolerance: 4 },
+  { name: 'hill.mid', hex: '#6C9663', role: 'mid hills', tolerance: 4 },
+  { name: 'ground.near', hex: '#37702F', role: 'near ground', tolerance: 4 },
   { name: 'ground.shade', hex: '#2B5D28', role: 'ground shadow', tolerance: 4 },
-  { name: 'tree.trunk', hex: '#6C4524', role: 'tree trunk', tolerance: 4 },
-  { name: 'tree.leaf', hex: '#1E6C2D', role: 'foliage', tolerance: 4 },
+  { name: 'tree.trunk', hex: '#5A3A1E', role: 'tree trunk', tolerance: 4 },
+  // The canopy needs its own step on the value ladder. At #1E6C2D it sat
+  // three L* from the ground it stands on, and the hero tree — the thing
+  // the whole story is about — was invisible in every shot it appeared
+  // in. Hue difference is not separation.
+  { name: 'tree.leaf', hex: '#1A4A20', role: 'foliage', tolerance: 4 },
+  { name: 'bush.mid', hex: '#55954B', role: 'mid-distance bushes', tolerance: 4 },
+  { name: 'grass.tuft', hex: '#245020', role: 'foreground grass', tolerance: 4 },
+  { name: 'meadow.detail', hex: '#2C5F27', role: 'grass tufts on the near ground', tolerance: 4 },
   { name: 'prop.lantern', hex: '#FFD98A', role: 'lantern glow', tolerance: 4 },
 ];
 

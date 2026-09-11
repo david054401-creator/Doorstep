@@ -101,13 +101,26 @@ export const MIBO_DELIVERY: DeliverySpec = {
  * generated backgrounds so often look like a painted flat behind a puppet.
  */
 const GROUND_Y = 0;
-const CHARACTER_HEIGHT = 360;
-// A high horizon. The cast then plays against the hills rather than the
-// sky, which is where the value separation is: a pale warm character on a
-// pale sky has hue contrast and almost no value contrast, and reads as
-// mush. Preschool layout does this on purpose.
-const HORIZON_Y = -CHARACTER_HEIGHT * 1.5;
+// MIBO is 3.83 head units at 108px a head. The world is laid out in the
+// character's own units, so this number has to be the real one: at 360
+// every layer in the meadow was placed a head and a half too high, the
+// horizon sat above the top of any character framing, and every shot
+// came back as a flat green field with the sky, the far hills and the
+// hero tree all outside the frame.
+const CHARACTER_HEIGHT = 414;
+// A high horizon — but inside the frame. The cast plays against the
+// hills rather than the sky, which is where the value separation is: a
+// pale warm character on a pale sky has hue contrast and almost no
+// value contrast, and reads as mush. Putting it just above the top of
+// the head keeps the whole figure against the hills and the ground
+// while still leaving a strip of sky in a long shot.
+const HORIZON_Y = -CHARACTER_HEIGHT * 1.15;
 const WORLD_WIDTH = 9000;
+// The hero tree. The script is about it, so it has to be in shot: at
+// x = 980 it sat outside every character framing and the audience never
+// once saw the thing everybody was talking about.
+const TREE_X = 430;
+const TREE_SCALE = 0.78;
 
 /** A rolling hill silhouette that straddles the horizon. */
 function hill(peakY: number, amplitude: number, phase: number, width = WORLD_WIDTH): Point[] {
@@ -126,6 +139,79 @@ function hill(peakY: number, amplitude: number, phase: number, width = WORLD_WID
   // Skirt the shape well below frame so it reads as a solid mass.
   pts.push({ x: width / 2, y: GROUND_Y + 4000 });
   pts.push({ x: -width / 2, y: GROUND_Y + 4000 });
+  return pts;
+}
+
+/** A run of rounded masses along a line — bushes, shrubs, hedgerow. */
+function bushes(baseY: number, scale: number, width = WORLD_WIDTH): Point[][] {
+  const out: Point[][] = [];
+  const spacing = 340 * scale;
+  for (let x = -width / 2; x <= width / 2; x += spacing) {
+    const seed = Math.sin(x * 0.013) * 0.5 + 0.5;
+    const rx = (90 + seed * 70) * scale;
+    const ry = (46 + seed * 30) * scale;
+    const pts: Point[] = [];
+    for (let i = 0; i <= 28; i++) {
+      const a = Math.PI + (i / 28) * Math.PI;
+      const wobble = 1 + Math.sin(a * 4 + seed * 6) * 0.09;
+      pts.push({ x: x + Math.cos(a) * rx * wobble, y: baseY + Math.sin(a) * ry * wobble });
+    }
+    pts.push({ x: x + rx, y: baseY + 260 });
+    pts.push({ x: x - rx, y: baseY + 260 });
+    out.push(pts);
+  }
+  return out;
+}
+
+/**
+ * Tufts scattered across the near-ground plane, receding in size.
+ *
+ * Without them the ground is one flat fill occupying most of every
+ * medium shot — the painted flat the module docstring warns about. The
+ * scatter is deterministic (a hashed position, not a random number), so
+ * the meadow is the same meadow in every render.
+ */
+function scatter(topY: number, bottomY: number, count: number, width = WORLD_WIDTH): Point[][] {
+  const out: Point[][] = [];
+  for (let i = 0; i < count; i++) {
+    // A low-discrepancy pair, so the tufts spread instead of clumping.
+    const u = (i * 0.7548776662466927) % 1;
+    const v = (i * 0.5698402909980532) % 1;
+    const x = -width / 2 + width * u;
+    // Bias toward the camera so the near ground is busier than the far.
+    const t = v * v;
+    const y = topY + (bottomY - topY) * t;
+    const scale = 0.35 + t * 1.15;
+    const w = 17 * scale;
+    const h = 30 * scale;
+    const blades = 3 + (i % 3);
+    const pts: Point[] = [{ x: x - w, y }];
+    for (let b = 0; b < blades; b++) {
+      const bx = x - w + ((b + 0.5) / blades) * 2 * w;
+      const lean = (((i + b) % 3) - 1) * 0.35;
+      pts.push({ x: bx + lean * w * 0.5, y: y - h * (0.62 + ((b * 7 + i) % 5) * 0.09) });
+      pts.push({ x: bx + w / blades, y: y - h * 0.1 });
+    }
+    pts.push({ x: x + w, y });
+    out.push(pts);
+  }
+  return out;
+}
+
+/** A band whose top edge is tufted rather than ruled. */
+function grassBand(topY: number, bottomY: number, width = WORLD_WIDTH): Point[] {
+  const pts: Point[] = [];
+  const steps = 420;
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const x = -width / 2 + width * t;
+    // Blades, not a sine: a sharp saw with a slow swell under it.
+    const blade = Math.abs(((i % 7) / 7) * 2 - 1);
+    const swell = Math.sin(t * Math.PI * 9) * 6 + Math.sin(t * Math.PI * 23 + 1.4) * 3;
+    pts.push({ x, y: topY - blade * 26 - swell });
+  }
+  pts.push({ x: width / 2, y: bottomY });
+  pts.push({ x: -width / 2, y: bottomY });
   return pts;
 }
 
@@ -169,7 +255,7 @@ export function meadowEnvironment(): Environment {
     horizonY: 0.2,
     blocks: [
       { id: 'ground', name: 'Ground plane', contours: [band(HORIZON_Y, GROUND_Y + 4000)], depth: 0.85 },
-      { id: 'tree', name: 'Hero tree', contours: tree(980, GROUND_Y, 1), depth: 0.7 },
+      { id: 'tree', name: 'Hero tree', contours: tree(TREE_X, GROUND_Y, TREE_SCALE), depth: 0.7 },
     ],
   };
 
@@ -208,7 +294,7 @@ export function meadowEnvironment(): Environment {
       name: 'Hero tree',
       depth: 0.58,
       fill: 'tree.leaf',
-      contours: tree(980, GROUND_Y - 10, 1),
+      contours: tree(TREE_X, GROUND_Y - 10, TREE_SCALE),
       haze: 0.06,
       parallax: 0.58,
     },
@@ -221,11 +307,38 @@ export function meadowEnvironment(): Environment {
       parallax: 0.78,
     },
     {
+      // Mid-distance bushes. A meadow at character scale needs something
+      // between the horizon and the ground plane, or every shot is one
+      // flat green field with a wedge of hill along the top.
+      id: 'bushes_mid',
+      name: 'Mid bushes',
+      depth: 0.66,
+      fill: 'bush.mid',
+      contours: bushes(HORIZON_Y + 62, 0.9),
+      haze: 0.1,
+      blur: 0.4,
+      parallax: 0.66,
+    },
+    {
+      // Texture on the near ground. A medium shot of this world is
+      // mostly the ground plane, and one flat fill across two thirds of
+      // the frame is the painted flat this layout exists to avoid.
+      id: 'meadow_detail',
+      name: 'Meadow tufts',
+      depth: 0.82,
+      fill: 'meadow.detail',
+      contours: scatter(HORIZON_Y + 110, GROUND_Y + 10, 260),
+      parallax: 0.82,
+    },
+    {
       id: 'grass_fg',
       name: 'Foreground grass',
       depth: 1,
-      fill: 'ground.shade',
-      contours: [band(GROUND_Y + 120, GROUND_Y + 2200)],
+      fill: 'grass.tuft',
+      // A tufted foreground edge the cast stands behind. A straight
+      // band reads as a floor; the tufts read as grass and give the
+      // bottom of the frame something to be.
+      contours: [grassBand(GROUND_Y + 24, GROUND_Y + 2200)],
       blur: 2.4,
       parallax: 1,
     },
@@ -237,8 +350,23 @@ export function meadowEnvironment(): Environment {
     layout,
     layers,
     lightingKey: MIBO_STYLE_BIBLE.lightingRules,
+    // Every swatch a layer in this environment names. A layer whose fill
+    // is not in the colour key resolves to nothing and renders as an
+    // untinted shape, which is how the mid bushes came out pale mint
+    // against a meadow they were supposed to be the dark masses in.
     colorKey: MIBO_PALETTE.filter((s) =>
-      ['sky.day', 'hill.far', 'hill.mid', 'ground.near', 'ground.shade', 'tree.leaf', 'tree.trunk'].includes(s.name),
+      [
+        'sky.day',
+        'hill.far',
+        'hill.mid',
+        'ground.near',
+        'ground.shade',
+        'bush.mid',
+        'grass.tuft',
+        'meadow.detail',
+        'tree.leaf',
+        'tree.trunk',
+      ].includes(s.name),
     ),
     locked: true,
   };
