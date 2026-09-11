@@ -21,6 +21,7 @@ import type {
   Environment,
   Sequence,
   ValidationRecord,
+  ViewName,
 } from '../graph/types.ts';
 import type { NodeContract } from './dag.ts';
 import { buildDag } from './dag.ts';
@@ -41,6 +42,12 @@ import { SHOT_REPAIR_TABLE } from '../director/repair-table.ts';
 import { renderScene, renderCharacterPlate } from '../render/renderer.ts';
 import { validateCamera, validateDepthOrder, validateFraming, validatePhotosensitivity, validateDelivery, validateNoText } from '../validators/comp.ts';
 import { validatePaletteConformance, validateValueStructure, validateBibleConformance } from '../validators/color.ts';
+import { buildIdentityReference, validateIdentity } from '../validators/identity.ts';
+import type { IdentityReference } from '../validators/identity.ts';
+import { poseRig, defaultSwaps } from '../rig/rig.ts';
+import { getPose } from '../animation/pose-library.ts';
+import { emptyScene } from '../render/scene.ts';
+import { mTranslate } from '../core/math.ts';
 import { validateLipsync } from '../audio/validators.ts';
 import { buildCueSheet } from '../audio/cue-sheet.ts';
 import { allShots } from '../story/script-to-shots.ts';
@@ -361,7 +368,7 @@ export function buildPipeline(project: Project, options: PipelineOptions = {}): 
         }
         return { shot: o.shot, images, plates };
       },
-      validate: (out) => {
+      validate: async (out) => {
         const o = out as RenderOutput;
         const checks: CheckResult[] = [];
         const sampleIdx = [0, Math.floor(o.images.length / 2), o.images.length - 1].filter(
@@ -392,6 +399,23 @@ export function buildPipeline(project: Project, options: PipelineOptions = {}): 
             );
           }
         }
+        // Identity: does this character stay the character the model
+        // sheet approved? Invariant 2 is blocking, and it was coming
+        // back unmeasured on every build — which blocks delivery just
+        // as a break would, and rightly so. The plates are already
+        // rendered for the colour checks; the reference is the rig at
+        // rest in the same view, which is what the model sheet is.
+        for (const character of project.characters) {
+          const platesFor = o.plates.get(character.id);
+          const placement = o.shot.staging.characters.find((c) => c.characterId === character.id);
+          if (!platesFor || !placement || !character.rig) continue;
+          const reference = await identityReference(character, placement.view, width, height);
+          if (!reference) continue;
+          const byFrame = new Map<number, ImageBuffer>();
+          platesFor.forEach((img, i) => byFrame.set(i, img));
+          checks.push(...(await validateIdentity(o.shot, character, reference, byFrame)));
+        }
+
         checks.push(...validatePhotosensitivity(o.images, { fps }, { shotId: shot.id }));
         checks.push(...validateDelivery(o.images, o.shot, effectiveDelivery));
         return checks;
@@ -422,6 +446,63 @@ export function buildPipeline(project: Project, options: PipelineOptions = {}): 
 }
 
 /** Frame the shot on its subjects before anything else reads the camera. */
+/**
+ * The identity reference for a character in one view: the rig at rest,
+ * rendered on transparency exactly as the shot plates are.
+ *
+ * Cached per character and view — it does not depend on the shot, and
+ * re-rendering it for every shot would cost more than the check.
+ */
+const identityReferences = new Map<string, IdentityReference>();
+
+/**
+ * The poses the sheet is taken in. Rest plus a spread wide enough to
+ * cover what acting actually does to a silhouette: arms up, arms in,
+ * weight on one leg, mid-stride.
+ */
+const IDENTITY_SHEET_POSES: (string | null)[] = [
+  null,
+  'idle_neutral',
+  'gesture_point',
+  'determined_set',
+  'scared_shrink',
+  'walk_contact',
+  'run_passing',
+];
+
+async function identityReference(
+  character: Character,
+  view: ViewName,
+  width: number,
+  height: number,
+): Promise<IdentityReference | null> {
+  if (!character.rig) return null;
+  const key = `${character.rig.id}:${character.rig.version}:${view}`;
+  const hit = identityReferences.get(key);
+  if (hit) return hit;
+
+  // The sheet's poses, not just its rest pose. A character reaching is
+  // the same character; measuring only against a standing drawing turns
+  // acting into drift.
+  const plates: ImageBuffer[] = [];
+  for (const pose of IDENTITY_SHEET_POSES) {
+    const scene = emptyScene(width, height, { r: 255, g: 255, b: 255 });
+    const library = pose ? getPose(pose) : undefined;
+    const posed = poseRig(character.rig, library?.pose ?? {}, {
+      view,
+      swaps: { ...defaultSwaps(character.rig), ...(library?.swaps ?? {}) },
+      colorModel: character.colorModel,
+      ownerId: character.id,
+    });
+    scene.layers.push(posed.layer);
+    scene.camera = mTranslate(width / 2, height * 0.86);
+    plates.push(renderCharacterPlate(scene, character.id, { samples: 4 }));
+  }
+  const reference = await buildIdentityReference(character, view, plates);
+  identityReferences.set(key, reference);
+  return reference;
+}
+
 /**
  * The world y of the horizon, read from the layout's ground plane.
  *
@@ -458,11 +539,29 @@ export function frameOnEnvironment(
   const horizonScreenY = (environment?.layout.horizonY ?? 0.33) * height;
   const positionY = horizon - (horizonScreenY - height / 2) / zoom;
 
+  // A locked-off shot of a still image is not a held frame, it is a
+  // dead one — and the delivery check catches it as a byte-identical
+  // duplicate, correctly. An establisher gets the slowest push there
+  // is: enough that the frame is alive and the multiplane reads as
+  // depth, far too little to notice as a move.
+  const push = 1.035;
   return {
     ...shot,
     camera: {
       ...shot.camera,
-      move: staticCurve({ position: { x: 0, y: positionY }, zoom, rotation: 0 }),
+      move: {
+        move: 'push',
+        keys: [
+          { frame: 0, position: { x: 0, y: positionY }, zoom, rotation: 0, ease: 'easeInOut' },
+          {
+            frame: Math.max(1, shot.durationFrames - 1),
+            position: { x: 0, y: positionY },
+            zoom: zoom * push,
+            rotation: 0,
+            ease: 'easeInOut',
+          },
+        ],
+      },
     },
   };
 }

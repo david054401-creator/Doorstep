@@ -32,27 +32,52 @@ const D = { threshold: 0.85, interval: 12 };
 export type IdentityReference = {
   characterId: string;
   view: ViewName;
-  descriptor: number[];
-  /** Which provider produced the descriptor. */
+  /**
+   * One descriptor per approved pose.
+   *
+   * A model sheet is a sheet, not a single drawing: the character
+   * standing, reaching and crouching are all the same character, and a
+   * reference built from one rest pose reports every one of the others
+   * as drift. That is the wrong lesson to give an animator — the answer
+   * to "the character changes when it moves" is not "move it less".
+   * Similarity is taken against the closest approved pose.
+   */
+  descriptors: number[][];
+  /** Which provider produced them. */
   source: string;
 };
 
-/** Build the locked identity reference from an approved model-sheet render. */
+/** Build the locked identity reference from approved model-sheet renders. */
 export async function buildIdentityReference(
   character: Character,
   view: ViewName,
-  sheetRender: ImageBuffer,
+  sheetRenders: ImageBuffer | readonly ImageBuffer[],
   embedding?: EmbeddingProvider,
 ): Promise<IdentityReference> {
-  const descriptor = embedding
-    ? await embedding.embed(sheetRender)
-    : identityDescriptor(sheetRender);
+  const renders = Array.isArray(sheetRenders) ? sheetRenders : [sheetRenders as ImageBuffer];
+  const descriptors: number[][] = [];
+  for (const render of renders) {
+    descriptors.push(embedding ? await embedding.embed(render) : identityDescriptor(render));
+  }
   return {
     characterId: character.id,
     view,
-    descriptor,
+    descriptors,
     source: embedding ? `${embedding.name}:${embedding.model}` : 'deterministic-descriptor',
   };
+}
+
+/** Similarity against the closest approved pose on the sheet. */
+export function referenceSimilarity(
+  reference: IdentityReference,
+  descriptor: readonly number[],
+): number {
+  let best = -1;
+  for (const d of reference.descriptors) {
+    const s = cosineSimilarity(d, descriptor);
+    if (s > best) best = s;
+  }
+  return best < 0 ? 0 : best;
 }
 
 /**
@@ -85,7 +110,7 @@ export async function validateIdentity(
     const descriptor = options.embedding
       ? await options.embedding.embed(plate)
       : identityDescriptor(plate);
-    samples.push({ frame, similarity: cosineSimilarity(reference.descriptor, descriptor) });
+    samples.push({ frame, similarity: referenceSimilarity(reference, descriptor) });
   }
 
   if (samples.length === 0) {
@@ -116,7 +141,7 @@ export async function validateIdentity(
       floor: 0.4,
       message:
         worst.similarity >= threshold
-          ? `${character.name} stays on model across ${samples.length} sampled frames (worst similarity ${worst.similarity.toFixed(3)} at frame ${worst.frame}, measured with ${reference.source}).`
+          ? `${character.name} stays on model across ${samples.length} sampled frames (worst similarity ${worst.similarity.toFixed(3)} at frame ${worst.frame}, measured with ${reference.source} against ${reference.descriptors.length} approved pose(s)).`
           : `${character.name} drifts off model at frame ${worst.frame}: similarity ${worst.similarity.toFixed(3)} against the approved ${reference.view} view, below the ${threshold} floor.`,
       diagnosis: 'identity.drift',
       where: { ...where, frame: worst.frame },
