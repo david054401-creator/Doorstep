@@ -85,15 +85,28 @@ export function evaluateCamera(curve: CameraCurve, frame: number, seed = 1): Cam
 
 /**
  * Build the world→screen matrix for a camera state at a given canvas size.
- * `parallax` scales translation for multiplane depth: 0 = infinitely far
- * (does not move), 1 = at the action plane.
+ *
+ * `parallax` is the multiplane depth factor: 0 is infinitely far and does
+ * not shift at all as the camera moves, 1 sits on the action plane and
+ * shifts with it. Crucially it scales the camera's *movement away from a
+ * reference*, not its absolute position — scaling the absolute position
+ * would throw a distant hill thousands of units off screen simply because
+ * the camera happens to be framed on a character's eyeline. The reference
+ * is the shot's opening camera position, which is where every plane is
+ * registered and where the layout was composed.
  */
 export function cameraMatrix(
   state: CameraState,
   width: number,
   height: number,
   parallax = 1,
+  reference?: Vec2,
 ): Mat2D {
+  const ref = reference ?? state.position;
+  const effective = {
+    x: ref.x + (state.position.x - ref.x) * parallax,
+    y: ref.y + (state.position.y - ref.y) * parallax,
+  };
   let m = mTranslate(width / 2, height / 2);
   m = mmul(m, mScale(state.zoom, state.zoom));
   if (state.rotation !== 0) {
@@ -101,7 +114,7 @@ export function cameraMatrix(
     const s = Math.sin(state.rotation);
     m = mmul(m, { a: c, b: s, c: -s, d: c, e: 0, f: 0 });
   }
-  m = mmul(m, mTranslate(-state.position.x * parallax, -state.position.y * parallax));
+  m = mmul(m, mTranslate(-effective.x, -effective.y));
   return m;
 }
 
@@ -112,21 +125,70 @@ export function cameraMatrix(
 export function frameSubject(options: {
   size: ShotSize;
   subject: Placement;
+  /** Full height of the character in world units. */
   subjectHeightPx: number;
+  /** Height of the head, used to place the eyeline. */
+  headHeightPx?: number;
   canvasHeight: number;
-  /** Head-top y in world units, used to place the eyeline. */
+  canvasWidth?: number;
+  /** World y of the top of the head. Rigs are built with +y downward. */
   subjectTopY: number;
 }): CameraState {
   const coverage = SHOT_SIZE_COVERAGE[options.size];
+  const headHeight = options.headHeightPx ?? options.subjectHeightPx / 6;
+  // Show `coverage` of the character's height across most of the frame,
+  // leaving a little air top and bottom.
   const zoom = clampZoom(
-    (options.canvasHeight * 0.82) / Math.max(1, options.subjectHeightPx * coverage),
+    (options.canvasHeight * 0.94) / Math.max(1, options.subjectHeightPx * coverage),
   );
-  // Eye level sits ~0.88 of the way up a stylised head.
-  const eyeY = options.subjectTopY + options.subjectHeightPx * 0.1;
+  // Eye level sits a little under half way down a stylised head.
+  const eyeY = options.subjectTopY + headHeight * 0.45;
   const targetScreenY = SHOT_SIZE_EYELINE[options.size] * options.canvasHeight;
-  const worldOffsetY = (options.canvasHeight / 2 - targetScreenY) / zoom;
+  // Screen y of a world point is (y - position.y) * zoom + canvasHeight / 2,
+  // so putting the eyeline on target means solving that for position.y.
+  const positionY = eyeY - (targetScreenY - options.canvasHeight / 2) / zoom;
   return {
-    position: { x: options.subject.position.x, y: eyeY - worldOffsetY },
+    position: { x: options.subject.position.x, y: positionY },
+    zoom,
+    rotation: 0,
+  };
+}
+
+/**
+ * Frame two or more subjects together: fit their combined bounds, then
+ * apply the shot size as a margin rather than a per-character coverage.
+ */
+export function frameGroup(options: {
+  size: ShotSize;
+  subjects: readonly Placement[];
+  subjectHeightPx: number;
+  headHeightPx?: number;
+  canvasWidth: number;
+  canvasHeight: number;
+  subjectTopY: number;
+}): CameraState {
+  if (options.subjects.length === 0) {
+    return { position: { x: 0, y: 0 }, zoom: 1, rotation: 0 };
+  }
+  if (options.subjects.length === 1) {
+    return frameSubject({ ...options, subject: options.subjects[0] });
+  }
+  const xs = options.subjects.map((s) => s.position.x);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const spread = maxX - minX + options.subjectHeightPx * 0.55;
+  const coverage = SHOT_SIZE_COVERAGE[options.size];
+  const zoomForHeight = (options.canvasHeight * 0.94) / Math.max(1, options.subjectHeightPx * coverage);
+  const zoomForWidth = (options.canvasWidth * 0.86) / Math.max(1, spread);
+  const zoom = clampZoom(Math.min(zoomForHeight, zoomForWidth));
+  const headHeight = options.headHeightPx ?? options.subjectHeightPx / 6;
+  const eyeY = options.subjectTopY + headHeight * 0.45;
+  const targetScreenY = SHOT_SIZE_EYELINE[options.size] * options.canvasHeight;
+  return {
+    position: {
+      x: (minX + maxX) / 2,
+      y: eyeY - (targetScreenY - options.canvasHeight / 2) / zoom,
+    },
     zoom,
     rotation: 0,
   };

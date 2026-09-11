@@ -53,8 +53,16 @@ export type DrawLayer = {
   blur?: number;
   /** Atmospheric haze toward a colour. */
   haze?: { color: string; amount: number };
-  /** Parallax factor already baked into shape coordinates; kept for audit. */
+  /** Multiplane parallax factor, for audit and for the comp validator. */
   parallax?: number;
+  /**
+   * Per-layer world-to-screen matrix. A multiplane background plane moves
+   * at its own rate, so it carries its own camera; layers without one use
+   * the scene camera. Shapes are always stored in world space — baking the
+   * transform into the coordinates and then letting the renderer apply the
+   * scene camera as well transforms them twice.
+   */
+  camera?: Mat2D;
   ownerId?: string;
 };
 

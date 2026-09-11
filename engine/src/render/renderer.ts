@@ -38,13 +38,16 @@ export function renderScene(scene: Scene, options: RenderOptions = {}): ImageBuf
     ? createImage(w, h)
     : createImage(w, h, { ...scene.background, a: 1 });
 
-  const scale = (p: Vec2): Vec2 => {
-    const c = mapply(scene.camera, p);
+  const scaleWith = (m: typeof scene.camera) => (p: Vec2): Vec2 => {
+    const c = mapply(m, p);
     return { x: c.x * ss, y: c.y * ss };
   };
 
   for (const layer of sortedLayers(scene)) {
     if (options.onlyOwner && layer.ownerId && layer.ownerId !== options.onlyOwner) continue;
+    // A multiplane plane travels at its own rate and so carries its own
+    // camera; everything else rides the scene camera.
+    const scale = scaleWith(layer.camera ?? scene.camera);
     const needsOwnBuffer =
       (layer.blur ?? 0) > 0 || layer.opacity < 1 || layer.blend !== 'normal' || !!layer.haze;
     const target = needsOwnBuffer ? createImage(w, h) : canvas;

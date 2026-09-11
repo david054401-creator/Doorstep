@@ -272,15 +272,39 @@ export type ArcFit = {
 };
 
 /**
- * Fit a smooth arc to an end-effector path. The path is re-parameterised by
- * cumulative arc length, then x(t) and y(t) are each fit with a quadratic —
- * a straight line, a circular arc and a gentle S all score high; a zig-zag
- * (the machine-made "linear interpolation" tell) scores low.
+ * Fit a smooth arc to an end-effector path.
+ *
+ * The path is re-parameterised by cumulative arc length, then x(t) and y(t)
+ * are each fit with a cubic. Cubic, not quadratic: a real animated arc
+ * usually overshoots its target and settles back, which traces an S, and a
+ * parabola cannot represent an S — it would score good animation as broken.
+ * A straight line, a circular arc, an S and a there-and-back all fit well;
+ * a zig-zag, which is the machine-made "linear interpolation between poses"
+ * tell, does not.
  */
-export function fitArc(points: readonly Vec2[], degree = 2): ArcFit {
-  if (points.length < 3) {
+export function fitArc(rawPoints: readonly Vec2[], degree = 3): ArcFit {
+  if (rawPoints.length < 3) {
     return { r2: 1, pathLength: 0, maxResidual: 0, straightness: 1 };
   }
+  // An arc is a property of the *path*, not of the time series that traced
+  // it. Frames where the effector is stationary — a planted foot, a hold —
+  // pile many samples onto one arc-length position, and the fit then has
+  // to explain several different residuals at the same parameter value.
+  // Collapsing those repeats first is what makes the measure mean "does
+  // this travel on a curve" rather than "did it ever pause".
+  let gross = 0;
+  for (let i = 1; i < rawPoints.length; i++) gross += vdist(rawPoints[i - 1], rawPoints[i]);
+  const minStep = gross * 0.005;
+  const points: Vec2[] = [rawPoints[0]];
+  for (let i = 1; i < rawPoints.length; i++) {
+    if (vdist(points[points.length - 1], rawPoints[i]) >= minStep) points.push(rawPoints[i]);
+  }
+  const last = rawPoints[rawPoints.length - 1];
+  if (vdist(points[points.length - 1], last) > 1e-9) points.push(last);
+  if (points.length < 3) {
+    return { r2: 1, pathLength: gross, maxResidual: 0, straightness: 1 };
+  }
+
   const t: number[] = [0];
   let total = 0;
   for (let i = 1; i < points.length; i++) {
