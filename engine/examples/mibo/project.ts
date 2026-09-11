@@ -29,6 +29,12 @@ Draft date: 2026
 
 EXT. HILLSIDE MEADOW - DAY
 
+WIDE ON THE MEADOW
+
+The grass holds still. Wind walks through it and moves on.
+
+ON MIBO
+
 MIBO sits on the grass, ears drooping.
 
 MIBO
@@ -52,11 +58,25 @@ PIP
 (brightly)
 Then we look there!
 
+ON MIBO
+
+MIBO looks at the tree, then down at the grass, then up again.
+
+MIBO RUNNING
+
 MIBO runs toward the tree, ears flying.
 
 MIBO
 (determined)
 Together!
+
+UNDER THE BIG TREE
+
+MIBO and PIP stop under the branches and listen.
+
+THE HUM
+
+A low sound moves down through the leaves. MIBO's ears lift. PIP goes still beside MIBO, listening too.
 `;
 
 export const MIBO_DELIVERY: DeliverySpec = {

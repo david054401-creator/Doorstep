@@ -23,7 +23,8 @@ import { parseFountain, parseSceneHeading } from './fountain.ts';
 import type { FountainScript, FountainElement } from './fountain.ts';
 import { makeId } from '../core/ids.ts';
 import { speechFrames, DEFAULT_FPS } from '../core/units.ts';
-import { emptyChart } from '../timing/chart.ts';
+import { emptyChart, rangeFor } from '../timing/chart.ts';
+import { actionClassFor } from '../animation/blocking.ts';
 import { staticCurve } from '../render/camera.ts';
 
 export type BreakdownOptions = {
@@ -96,17 +97,35 @@ export function chooseShotSize(options: {
   isEstablishing: boolean;
   characterCount: number;
   previous?: ShotSize;
+  /** Sizes already used in this scene, so coverage keeps opening up. */
+  used?: readonly ShotSize[];
 }): ShotSize {
   if (options.isEstablishing) return 'els';
   if (options.characterCount >= 2 && !options.hasDialogue) return 'twoShot';
+
+  // Candidates in order of how well they serve this beat. Alternating
+  // between two sizes satisfies "never repeat the last one" and still
+  // produces the flattest coverage there is, which is what the variety
+  // check was catching: the rule has to reach for a size the scene has
+  // not used yet, not just a different one from last time.
+  let candidates: ShotSize[];
   if (options.hasDialogue) {
-    if (options.intensity >= 4) return 'cu';
-    if (options.intensity >= 3) return 'mcu';
-    // Avoid repeating the previous size — flat coverage reads as cheap.
-    return options.previous === 'ms' ? 'mcu' : 'ms';
+    if (options.intensity >= 4) candidates = ['cu', 'mcu', 'ms'];
+    else if (options.intensity >= 3) candidates = ['mcu', 'ms', 'cu'];
+    else candidates = ['ms', 'mcu', 'mls', 'cu'];
+    // Open up as a scene turns: the last beat of a conversation wants
+    // air around it.
+    if (options.index === options.total - 1) candidates = ['mls', ...candidates];
+  } else if (options.index === options.total - 1) {
+    candidates = ['mls', 'ls', 'ms'];
+  } else {
+    candidates = ['ms', 'mls', 'ls'];
   }
-  if (options.index === options.total - 1) return 'mls';
-  return options.previous === 'ms' ? 'mls' : 'ms';
+
+  const used = new Set(options.used ?? []);
+  const fresh = candidates.find((c) => c !== options.previous && !used.has(c));
+  if (fresh) return fresh;
+  return candidates.find((c) => c !== options.previous) ?? candidates[0];
 }
 
 export function chooseAngle(intensity: number, emotion: ExpressionName): ShotAngle {
@@ -179,20 +198,27 @@ export function scriptToSequence(
         // past the first line means two beats fighting over the same
         // channels, and the second one truncates the first into a pop.
         const firstLineAt = dialogue[0]?.startFrame ?? Infinity;
-        const frames = Math.max(
-          minShot,
-          Math.min(Math.round(actionFrames(actionText, fps)), Math.max(minShot, firstLineAt)),
-        );
-        beats.push({
+        const draft: Beat = {
           id: makeId('beat', `${shotId}:action`),
           intent: intentFromAction(actionText),
           action: actionText,
           emotion: inferEmotion(undefined, actionText),
           intensity: inferIntensity(undefined, actionText),
           startFrame: 0,
-          durationFrames: frames,
+          durationFrames: Math.max(
+            minShot,
+            Math.min(Math.round(actionFrames(actionText, fps)), Math.max(minShot, firstLineAt)),
+          ),
           characterId: subjects.length ? charId(subjects[0]) : undefined,
-        });
+        };
+        // A head turn takes as long as a head turn takes. Stretching one
+        // to fill the shot's minimum length produces a character who
+        // rotates their head over three quarters of a second and then
+        // stands there — the beat is padded, not slow. The extra time
+        // belongs to the hold after it, which is a different thing and
+        // reads as one.
+        const [, , longest] = rangeFor(actionClassFor(draft), fps);
+        beats.push({ ...draft, durationFrames: Math.min(draft.durationFrames, longest) });
       }
       for (const l of dialogue) {
         const src = p.lines.find((x) => charId(x.character) === l.characterId && x.text === l.text);
@@ -203,10 +229,16 @@ export function scriptToSequence(
           emotion: inferEmotion(src?.direction, l.text),
           intensity: inferIntensity(src?.direction, l.text),
           startFrame: l.startFrame,
+          // A dialogue beat lasts exactly as long as the line. It is
+          // not a timing choice, and the pose it settles into is held
+          // alive by the idle and secondary layers rather than by
+          // chopping the line into pieces that the hand then has to
+          // zig-zag between.
           durationFrames: l.durationFrames,
           characterId: l.characterId,
         });
       }
+
       if (beats.length === 0) {
         beats.push({
           id: makeId('beat', `${shotId}:hold`),
@@ -235,6 +267,7 @@ export function scriptToSequence(
         isEstablishing: idx === 0 && sceneNumber === 1 && dialogue.length === 0,
         characterCount: subjects.length,
         previous: shots[shots.length - 1]?.camera.size,
+        used: shots.map((x) => x.camera.size),
       });
 
       const staging = buildStaging(subjects.map(charId), idx);
@@ -403,7 +436,15 @@ function buildStaging(characterIds: readonly string[], shotIndex: number): Stagi
   const eyelines: Record<string, Point2> = {};
   characters.forEach((c, i) => {
     const other = characters[(i + 1) % characters.length];
-    eyelines[c.characterId] = other && other !== c ? { ...other.position } : { x: 0, y: -40 };
+    eyelines[c.characterId] =
+      other && other !== c
+        ? { ...other.position }
+        : // Alone in frame, a character looks out along the way they are
+          // facing and a little above the horizon — at whatever they are
+          // walking toward. The old default was straight up, which put
+          // every solo character's gaze ninety degrees off their own
+          // body and had the whole cast staring at the sky.
+          { x: c.position.x + (c.facingRight ? 1 : -1) * 140, y: c.position.y - 34 };
   });
   return {
     characters,

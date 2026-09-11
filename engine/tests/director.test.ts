@@ -29,6 +29,8 @@ import { speechFrames } from '../src/core/units.ts';
 const project = buildMiboProject({ repairAttempts: 24 });
 const env = project.environments[0];
 const shots = allShots(project.sequences[0]);
+/** The first shot with a cast. Establishers have none, by design. */
+const firstActed = shots.findIndex((s) => s.staging.characters.length > 0);
 
 function prepare(index: number) {
   const shot = withFraming(shots[index], project, 320, 180, env);
@@ -101,6 +103,40 @@ describe('curves', () => {
   test('hitches are detected away from keys and not at them', () => {
     const clean = makeChannel('x', [[0, 0], [12, 50], [24, 100]], 'easeInOut');
     assert.deepEqual(hitchFrames(clean, 0, 24), []);
+  });
+
+  test('a properly eased move over a long hold is not a hitch', () => {
+    // The failure this guards against: judging acceleration against the
+    // shot's mean makes any real ease look like a spike as soon as the
+    // shot has a hold in it, and the "fix" an animator would take from
+    // that report is to flatten their curves.
+    const eased = makeChannel('x', [[0, 0], [6, 0.05], [24, -0.3], [80, -0.3]], 'easeInOut');
+    assert.deepEqual(hitchFrames(eased, 0, 80), []);
+  });
+
+  test('a real velocity discontinuity is still caught', () => {
+    // A pose that jumps and then holds: the velocity goes from zero to
+    // enormous and back inside two frames. That is a hitch.
+    const jumpy = makeChannel(
+      'x',
+      [
+        { frame: 0, value: 0, ease: 'linear' },
+        { frame: 20, value: 10, ease: 'linear' },
+        { frame: 21, value: 90, ease: 'linear' },
+        { frame: 40, value: 100, ease: 'linear' },
+      ],
+      'linear',
+    );
+    const found = hitchFrames(jumpy, 0, 40);
+    assert.ok(found.length > 0, 'a one-frame jump of 80 units is a hitch');
+    assert.ok(
+      found.every((f) => f < 19 || f > 22),
+      `hitches at a key are the key, not a hitch: ${found.join(',')}`,
+    );
+  });
+
+  test('a flat channel reports nothing rather than dividing by zero', () => {
+    assert.deepEqual(hitchFrames(makeChannel('x', [[0, 5], [30, 5]]), 0, 30), []);
   });
 });
 
@@ -277,7 +313,7 @@ describe('the twelve principles', () => {
   });
 
   test('every principle is actually measured', () => {
-    const { blocked, frames, primaryFrames } = prepare(0);
+    const { blocked, frames, primaryFrames } = prepare(firstActed);
     const names = new Set(
       validatePrinciples(blocked, frames, project, { fps: 24, primaryFrames }).map((c) => c.name),
     );
@@ -300,7 +336,7 @@ describe('the twelve principles', () => {
   });
 
   test('a frozen hold is caught', () => {
-    const { blocked, frames, primaryFrames } = prepare(0);
+    const { blocked, frames, primaryFrames } = prepare(firstActed);
     const dead = {
       ...blocked,
       curves: blocked.curves.filter((c) => !c.additive),

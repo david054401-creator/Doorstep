@@ -283,9 +283,39 @@ function edgeContrast(
   // separation device, not the thing being separated: sampling on the
   // line compares the ink to the background instead of comparing the
   // character to it.
-  const step = 3;
-  for (let y = step + 1; y < height - step - 1; y++) {
-    for (let x = step + 1; x < width - step - 1; x++) {
+  //
+  // One fixed offset is not enough to do that. At a line weight of 3 a
+  // three-pixel step lands squarely back on the ink, and the check then
+  // reports the distance between the outline and the ground — which is
+  // small by design, because the outline is dark and so is the grass.
+  // Reading a short run of samples either side and taking the median of
+  // each skips the line and compares the two colours that are actually
+  // in question.
+  const near = 3;
+  const far = 8;
+  const sampleRun = (
+    x: number,
+    y: number,
+    dx: number,
+    dy: number,
+    wantInside: boolean,
+  ): number | null => {
+    const values: number[] = [];
+    for (let d = near; d <= far; d++) {
+      const sx = x + dx * d;
+      const sy = y + dy * d;
+      if (sx < 0 || sy < 0 || sx >= width || sy >= height) break;
+      const j = sy * width + sx;
+      if (!!mask[j] !== wantInside) break;
+      values.push(L[j]);
+    }
+    if (values.length === 0) return null;
+    values.sort((a, b) => a - b);
+    return values[values.length >> 1];
+  };
+
+  for (let y = far + 1; y < height - far - 1; y++) {
+    for (let x = far + 1; x < width - far - 1; x++) {
       const i = y * width + x;
       if (!mask[i]) continue;
       let dir: [number, number] | null = null;
@@ -294,13 +324,10 @@ function edgeContrast(
       else if (!mask[i - width]) dir = [0, -1];
       else if (!mask[i + width]) dir = [0, 1];
       if (!dir) continue;
-      const inX = x - dir[0] * step;
-      const inY = y - dir[1] * step;
-      const outX = x + dir[0] * step;
-      const outY = y + dir[1] * step;
-      if (!mask[inY * width + inX]) continue;
-      if (mask[outY * width + outX]) continue;
-      deltas.push(Math.abs(L[inY * width + inX] - L[outY * width + outX]));
+      const inside = sampleRun(x, y, -dir[0], -dir[1], true);
+      const outside = sampleRun(x, y, dir[0], dir[1], false);
+      if (inside === null || outside === null) continue;
+      deltas.push(Math.abs(inside - outside));
     }
   }
   if (deltas.length === 0) return 100;

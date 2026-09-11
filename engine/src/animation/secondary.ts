@@ -90,13 +90,27 @@ export function measureLag(
   const a = derivative(sampleChannel(driver, start, end));
   const b = derivative(sampleChannel(follower, start, end));
   if (a.length < 4 || b.length < 4) return { lagFrames: 0, strength: 0 };
+
+  // The correlation is taken in absolute value on purpose. An
+  // appendage that drags is authored as a counter-rotation in its own
+  // local frame — as the head turns one way the ear rotates the other
+  // and then catches up — so the honest signal at the true lag is a
+  // strong *negative* correlation. Looking only for a positive one
+  // finds nothing and reports a lag of zero on a rig that is dragging
+  // correctly.
+  //
+  // What does have to be guarded is the window. At lag 10 of a
+  // 14-sample track there are four samples left, and four samples
+  // correlate with almost anything; without a floor the measurement
+  // walks off to the largest lag it is allowed.
+  const minWindow = Math.max(6, Math.floor(a.length * 0.6));
   let bestLag = 0;
   let best = -Infinity;
   for (let lag = 0; lag <= maxLag; lag++) {
-    const x = a.slice(0, a.length - lag);
-    const y = b.slice(lag);
-    const c = Math.abs(correlation(x, y));
-    if (c > best) {
+    const window = a.length - lag;
+    if (window < minWindow) break;
+    const c = Math.abs(correlation(a.slice(0, window), b.slice(lag)));
+    if (Number.isFinite(c) && c > best) {
       best = c;
       bestLag = lag;
     }

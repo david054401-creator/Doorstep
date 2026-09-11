@@ -19,12 +19,12 @@ import type {
 } from '../graph/types.ts';
 import type { Pose } from '../rig/skeleton.ts';
 import { evaluatePose, indexSkeleton } from '../rig/skeleton.ts';
-import { selectPose, retargetPose, scalePose, posesToChannels } from './pose-library.ts';
-import type { LibraryPose } from './pose-library.ts';
+import { selectPose, retargetPose, scalePose, posesToChannels, cyclePoses, cyclePeriod } from './pose-library.ts';
+import type { LibraryPose, LocomotionKind } from './pose-library.ts';
 import { applyActionShape, shapeFor } from '../timing/templates.ts';
 import { chartFromBeats, solveStepping, rangeFor } from '../timing/chart.ts';
 import type { ActionClass } from '../timing/chart.ts';
-import { makeChannel, setKey, sampleChannel } from '../timing/curves.ts';
+import { makeChannel, setKey, sampleChannel, evaluateChannel } from '../timing/curves.ts';
 import { buildIdleLayer } from './idle.ts';
 import type { IdleLayer } from './idle.ts';
 import { buildOverlapChannels } from './secondary.ts';
@@ -33,6 +33,7 @@ import { lineOfAction } from '../geom/silhouette.ts';
 import { makeId } from '../core/ids.ts';
 import { DEFAULT_FPS } from '../core/units.ts';
 import { clamp } from '../core/math.ts';
+import type { Vec2 } from '../core/math.ts';
 
 export type BlockingOptions = {
   fps?: number;
@@ -64,21 +65,66 @@ export function actionClassFor(beat: Beat): ActionClass {
   return beat.intensity >= 4 ? 'react' : 'gesture';
 }
 
-/** Tags a beat suggests, used to narrow the pose search. */
+/**
+ * Tags a beat suggests, used to narrow the pose search.
+ *
+ * This has to agree with `actionClassFor`. When it did not — the class
+ * recognised "runs" and the tag list did not — a beat that said *MIBO
+ * runs toward the tree* fell through to `idle`, the search returned a
+ * standing pose, and the shot then translated a standing character
+ * sideways with both feet planted. The foot-slide check caught it at
+ * 11.8 px/frame, which is a character on a skateboard.
+ */
 export function tagsFor(beat: Beat): string[] {
   const a = beat.action.toLowerCase();
   const tags: string[] = [];
-  if (/\b(sit|sits|sitting)\b/.test(a)) tags.push('sit');
-  if (/\b(stand|stands|rises?|stood)\b/.test(a)) tags.push('stand');
-  if (/\b(walk|walks)\b/.test(a)) tags.push('walk');
-  if (/\b(point|points)\b/.test(a)) tags.push('point');
-  if (/\b(wave|waves)\b/.test(a)) tags.push('wave');
-  if (/\b(look|looks|search|searches)\b/.test(a)) tags.push('search');
-  if (/\b(jump|jumps|leap|bounce|bounces)\b/.test(a)) tags.push('jump');
+  if (/\b(sit|sits|sitting|kneels?|crouch|crouches)\b/.test(a)) tags.push('sit');
+  if (/\b(stand|stands|rises?|stood|gets? up)\b/.test(a)) tags.push('stand');
+  if (/\b(run|runs|running|ran|dash|dashes|sprints?|races?|charges?|bolts?)\b/.test(a))
+    tags.push('run', 'locomotion');
+  if (/\b(walk|walks|walking|steps?|strolls?|wanders?|approach|approaches)\b/.test(a))
+    tags.push('walk', 'locomotion');
+  if (/\b(point|points|pointing)\b/.test(a)) tags.push('point');
+  if (/\b(wave|waves|waving|greets?|beckons?)\b/.test(a)) tags.push('wave');
+  if (/\b(look|looks|search|searches|scan|scans|peers?|watch|watches)\b/.test(a))
+    tags.push('search');
+  if (/\b(jump|jumps|leap|leaps|bounce|bounces|hops?|spring|springs)\b/.test(a)) tags.push('jump');
+  if (/\b(reach|reaches|grab|grabs|picks? up|takes?|offers?|holds? out)\b/.test(a))
+    tags.push('present');
+  if (/\b(think|thinks|wonders?|considers?|hesitates?|pauses?)\b/.test(a)) tags.push('consider');
+  if (/\b(recoil|recoils|gasps?|starts?|jolts?|flinch|flinches)\b/.test(a)) tags.push('recoil');
+  if (/\b(hide|hides|shrinks?|cowers?|shields?)\b/.test(a)) tags.push('shrink');
+  if (/\b(slump|slumps|droops?|sags?|sighs?)\b/.test(a)) tags.push('droop');
+  if (/\b(confront|confronts|glares?|looms?|advances? on)\b/.test(a)) tags.push('confront');
   if (/\bsays:/.test(a)) tags.push('gesture');
   if (tags.length === 0) tags.push('idle');
   return tags;
 }
+
+/** Locomotion classes get a cycle, not a single destination pose. */
+export function locomotionKindFor(cls: ActionClass): LocomotionKind | null {
+  if (cls === 'runCycle') return 'run';
+  if (cls === 'walkCycle') return 'walk';
+  return null;
+}
+
+/**
+ * The bones a locomotion cycle owns outright for its whole duration.
+ *
+ * Animation is layered: the legs carry the character across the ground
+ * and the upper body acts. A line spoken mid-run must not be allowed to
+ * reach down and reposition the legs, or the run stops being a run for
+ * as long as the character is talking.
+ */
+export const LOCOMOTION_BONES = new Set([
+  'root',
+  'L_thigh',
+  'R_thigh',
+  'L_shin',
+  'R_shin',
+  'L_foot',
+  'R_foot',
+]);
 
 /**
  * Block one shot.
@@ -134,10 +180,223 @@ export function blockShot(
       // destination in a single frame. That pop is invisible in the graph
       // and glaring on screen, and it is what the arc validator catches.
       const next = beats[beatIndex + 1];
-      const window = next
-        ? Math.max(2, Math.min(beat.durationFrames, next.startFrame - beat.startFrame))
-        : Math.max(2, Math.min(beat.durationFrames, shot.durationFrames - beat.startFrame));
       const cls = actionClassFor(beat);
+      const locomotion = locomotionKindFor(cls);
+      const untilShotEnd = Math.max(2, Math.min(beat.durationFrames, shot.durationFrames - beat.startFrame));
+      // A locomotion beat is a sustained state, not a one-shot move, so
+      // it runs for as long as it was written for. Everything else has
+      // to land before the next beat starts writing the same channels.
+      const window =
+        locomotion || !next
+          ? untilShotEnd
+          : Math.max(2, Math.min(beat.durationFrames, next.startFrame - beat.startFrame));
+      if (locomotion) {
+        // A cycle, not a destination.
+        //
+        // Everything else in this loop moves the character from one pose
+        // to another over the beat. Locomotion does not work that way: a
+        // walk is a repeating four-key cycle, and interpolating from a
+        // standing pose to a single "walk pose" and holding it there is
+        // what produces a character who glides across the ground with
+        // their legs frozen mid-stride.
+        const period = cyclePeriod(locomotion, fps);
+        const cycle = cyclePoses(locomotion, period);
+        const emitted: { frame: number; pose: Pose }[] = [];
+        for (let base = 0; base < window; base += period) {
+          for (const step of cycle) {
+            // The closing contact of one period is the opening contact
+            // of the next; emitting both puts two keys on one frame.
+            if (step.frame === period && base + period < window) continue;
+            const frame = beat.startFrame + base + step.frame;
+            if (frame > beat.startFrame + window) break;
+            emitted.push({
+              frame,
+              pose: scalePose(
+                boneIds.size ? retargetPose(step.pose, boneIds) : step.pose,
+                exaggeration,
+              ),
+            });
+          }
+        }
+
+        // Ease into the cycle from wherever the character was standing,
+        // rather than snapping onto the first contact.
+        const blendIn = Math.max(1, Math.round(period / 4));
+        const cycleBones = new Set(emitted.flatMap((e) => Object.keys(e.pose)));
+        const allBones = new Set([...Object.keys(previousPose), ...cycleBones]);
+        // If an acting beat plays over this run, it takes the upper body
+        // and the cycle keeps the legs.
+        const overlapped = beats.some(
+          (b) =>
+            b !== beat &&
+            locomotionKindFor(actionClassFor(b)) === null &&
+            b.startFrame < beat.startFrame + window &&
+            b.startFrame + b.durationFrames > beat.startFrame,
+        );
+        for (const bone of allBones) {
+          if (overlapped && !LOCOMOTION_BONES.has(bone)) continue;
+          for (const [suffix, read] of [
+            ['rotation', (t?: Pose[string]) => t?.rotation],
+            ['translate.x', (t?: Pose[string]) => t?.translate?.x],
+            ['translate.y', (t?: Pose[string]) => t?.translate?.y],
+          ] as const) {
+            // Forward travel is solved separately, by the foot lock
+            // below. Writing it here as well would fight it.
+            if (bone === 'root' && suffix === 'translate.x') continue;
+            const wanted = emitted.some((e) => read(e.pose[bone]) !== undefined);
+            if (!wanted && read(previousPose[bone]) === undefined) continue;
+            const key = `bone:${bone}.${suffix}`;
+            let channel = channels.get(key) ?? makeChannel(key, [], 'easeInOut');
+            channel = setKey(channel, {
+              frame: beat.startFrame,
+              value: read(previousPose[bone]) ?? 0,
+              // Ease in and out of the blend. An `easeOut` here leaves
+              // the standing pose at full speed, which drags the foot
+              // across the ground before the cycle has even started.
+              ease: 'easeInOut',
+            });
+            for (const e of emitted) {
+              if (e.frame <= beat.startFrame + blendIn && e.frame !== emitted[0].frame) continue;
+              channel = setKey(channel, {
+                frame: Math.max(beat.startFrame + blendIn, e.frame),
+                value: read(e.pose[bone]) ?? 0,
+                // A cycle key is a pose the body passes through, so the
+                // interpolation across it is smooth rather than settling.
+                ease: 'easeInOut',
+              });
+            }
+            channels.set(key, channel);
+          }
+        }
+
+        // Foot lock: measure the motion that was actually built, then
+        // move the root to cancel the contact foot's drift.
+        //
+        // This is the whole difference between a run and a slide, and
+        // the two obvious ways to get it are both wrong. Picking a
+        // stride length by eye is how every skating character in the
+        // history of the medium got made. Deriving one from the contact
+        // pose assumes the legs sweep the foot cleanly from front to
+        // back, which authored cycle keys do not: they are snapshots,
+        // and the foot moves between them however the interpolation
+        // takes it.
+        //
+        // So this reads the channels that were just written, evaluates
+        // the real skeleton frame by frame, and corrects against what
+        // the body is actually doing. During the airborne phase of a
+        // run neither foot is down and there is nothing to measure, so
+        // the root coasts at the ground speed it last had — which is
+        // what a body in the air does.
+        const lockFrom = beat.startFrame;
+        const lockTo = emitted[emitted.length - 1]?.frame ?? beat.startFrame;
+        if (rig && lockTo > lockFrom) {
+          const ix = indexSkeleton(rig.skeleton);
+          const rotationKeys = [...channels.entries()].filter(([k]) =>
+            k.startsWith('bone:') && k.endsWith('.rotation'),
+          );
+          const translateYKeys = [...channels.entries()].filter(([k]) =>
+            k.startsWith('bone:') && k.endsWith('.translate.y'),
+          );
+          const feetAt = (f: number): { L: Vec2; R: Vec2 } | null => {
+            const pose: Pose = {};
+            for (const [key, channel] of rotationKeys) {
+              const bone = key.slice('bone:'.length, -'.rotation'.length);
+              pose[bone] = { ...pose[bone], rotation: evaluateChannel(channel, f) };
+            }
+            for (const [key, channel] of translateYKeys) {
+              const bone = key.slice('bone:'.length, -'.translate.y'.length);
+              pose[bone] = { ...pose[bone], translate: { x: 0, y: evaluateChannel(channel, f) } };
+            }
+            const posed = evaluatePose(rig.skeleton, pose, ix);
+            const L = posed.bones.get('L_foot')?.tail;
+            const R = posed.bones.get('R_foot')?.tail;
+            return L && R ? { L, R } : null;
+          };
+
+          const samples: ({ L: Vec2; R: Vec2 } | null)[] = [];
+          for (let f = lockFrom; f <= lockTo; f++) samples.push(feetAt(f));
+          const ys = samples.flatMap((x) => (x ? [x.L.y, x.R.y] : []));
+          if (ys.length > 0) {
+            const ground = Math.max(...ys);
+            const tolerance = Math.max(4, (ground - Math.min(...ys)) * 0.12);
+            const base = previousPose.root?.translate?.x ?? 0;
+            let correction = 0;
+            let coast = 0;
+            let rootX = makeChannel('bone:root.translate.x', [], 'linear');
+            rootX = setKey(rootX, { frame: lockFrom, value: base, ease: 'linear' });
+            for (let i = 1; i < samples.length; i++) {
+              const a = samples[i - 1];
+              const b = samples[i];
+              if (a && b) {
+                // Which foot is carrying the weight? Not simply the
+                // lower one: at the moment of a step both are down, and
+                // picking the one that is about to swing makes the root
+                // chase it and drags the other foot out from under the
+                // character. The planted foot is the one that is not
+                // moving.
+                const candidates = (['L', 'R'] as const).filter(
+                  (side) =>
+                    ground - a[side].y < tolerance && ground - b[side].y < tolerance,
+                );
+                if (candidates.length > 0) {
+                  const support = candidates.reduce((best, side) =>
+                    Math.abs(b[side].x - a[side].x) < Math.abs(b[best].x - a[best].x) ? side : best,
+                  );
+                  coast = -(b[support].x - a[support].x);
+                }
+              }
+              correction += coast;
+              rootX = setKey(rootX, {
+                frame: lockFrom + i,
+                value: base + correction,
+                ease: 'linear',
+              });
+            }
+            channels.set('bone:root.translate.x', rootX);
+            const finalOffset = base + correction;
+            for (const e of emitted) {
+              e.pose.root = {
+                ...e.pose.root,
+                translate: {
+                  x: evaluateChannel(rootX, e.frame),
+                  y: e.pose.root?.translate?.y ?? 0,
+                },
+              };
+            }
+            previousPose = {
+              ...previousPose,
+              root: {
+                ...previousPose.root,
+                translate: { x: finalOffset, y: previousPose.root?.translate?.y ?? 0 },
+              },
+            };
+          }
+        }
+
+        // One recorded key pose per cycle key: the graph should say what
+        // the walk is made of, not just that a walk happened.
+        emitted.forEach((e, i) => {
+          keys.push({
+            id: makeId('key', `${shot.id}:${characterId}:${beat.id}:cy${i}`),
+            frame: e.frame,
+            characterId,
+            poseId: `${locomotion}_cycle`,
+            boneTransforms: Object.fromEntries(
+              Object.entries(e.pose).map(([b, t]) => [b, { rotation: t.rotation, translate: t.translate }]),
+            ),
+            intent:
+              i === 0
+                ? beat.intent
+                : `${locomotion === 'run' ? 'Run' : 'Walk'} cycle, key ${i + 1} of ${emitted.length}.`,
+            kind: i % 2 === 0 ? 'key' : 'breakdown',
+          });
+        });
+
+        usedPoses.push(`${locomotion}_cycle`);
+        previousPose = { ...previousPose, ...(emitted[emitted.length - 1]?.pose ?? {}) };
+        continue;
+      }
+
       const chosen: LibraryPose = selectPose({
         emotion: beat.emotion,
         tags: tagsFor(beat),
@@ -171,7 +430,18 @@ export function blockShot(
       // the previous value forward instead, and let the pose override only
       // what it actually specifies.
       const carried: Pose = { ...previousPose, ...target };
-      const bones = new Set([...Object.keys(previousPose), ...Object.keys(carried)]);
+      // Bones a cycle is driving right now are not this beat's to move.
+      const insideCycle = beats.some(
+        (b) =>
+          locomotionKindFor(actionClassFor(b)) !== null &&
+          b.startFrame <= beat.startFrame &&
+          b.startFrame + b.durationFrames > beat.startFrame,
+      );
+      const bones = new Set(
+        [...Object.keys(previousPose), ...Object.keys(carried)].filter(
+          (b) => !insideCycle || !LOCOMOTION_BONES.has(b),
+        ),
+      );
       let landmarks = {
         antic: beat.startFrame,
         action: beat.startFrame + fitted.actionFrames,

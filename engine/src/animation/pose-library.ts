@@ -34,6 +34,16 @@ export type LibraryPose = {
 /**
  * Base poses. These are the vocabulary; the blocking stage picks from them
  * and the timing engine moves between them.
+ *
+ * No pose in here is left/right symmetric, and that is deliberate rather
+ * than decorative. A perfectly mirrored pose — both arms out at the same
+ * angle, weight evenly on both feet — reads as a mannequin, and it is
+ * the single most recognisable tell of animation done by a machine.
+ * `principle.no_twinning` measures it, so the library it draws from had
+ * better not twin: every mirror pair here differs by enough to read
+ * (roughly 6 degrees and up), with the difference chosen to serve the
+ * pose. Scared shields harder with one arm; determined puts the weight
+ * on one leg; idle lets one hand fall closer to the body.
  */
 export const POSE_LIBRARY: LibraryPose[] = [
   {
@@ -43,8 +53,9 @@ export const POSE_LIBRARY: LibraryPose[] = [
     emotion: 'neutral',
     intensity: 1,
     pose: {
-      L_upperarm: { rotation: r(20) },
-      R_upperarm: { rotation: r(-20) },
+      L_upperarm: { rotation: r(22) },
+      R_upperarm: { rotation: r(-14) },
+      R_forearm: { rotation: r(9) },
       spine: { rotation: r(1) },
     },
     swaps: { eyes: 'open', mouth: 'X' },
@@ -78,8 +89,8 @@ export const POSE_LIBRARY: LibraryPose[] = [
       chest: { rotation: r(8) },
       neck: { rotation: r(16) },
       head: { rotation: r(14) },
-      L_upperarm: { rotation: r(30) },
-      R_upperarm: { rotation: r(-28) },
+      L_upperarm: { rotation: r(34) },
+      R_upperarm: { rotation: r(-21) },
       L_ear: { rotation: r(34) },
       R_ear: { rotation: r(-34) },
     },
@@ -136,8 +147,8 @@ export const POSE_LIBRARY: LibraryPose[] = [
       head: { rotation: r(-10) },
       L_upperarm: { rotation: r(-58) },
       R_upperarm: { rotation: r(62) },
-      L_forearm: { rotation: r(46) },
-      R_forearm: { rotation: r(-46) },
+      L_forearm: { rotation: r(53) },
+      R_forearm: { rotation: r(-37) },
       L_ear: { rotation: r(-30) },
       R_ear: { rotation: r(30) },
     },
@@ -170,12 +181,12 @@ export const POSE_LIBRARY: LibraryPose[] = [
       spine: { rotation: r(-8) },
       chest: { rotation: r(-6) },
       head: { rotation: r(-4) },
-      L_upperarm: { rotation: r(32) },
-      R_upperarm: { rotation: r(-30) },
-      L_forearm: { rotation: r(34) },
-      R_forearm: { rotation: r(-34) },
-      L_thigh: { rotation: r(-8) },
-      R_thigh: { rotation: r(8) },
+      L_upperarm: { rotation: r(36) },
+      R_upperarm: { rotation: r(-23) },
+      L_forearm: { rotation: r(40) },
+      R_forearm: { rotation: r(-26) },
+      L_thigh: { rotation: r(-11) },
+      R_thigh: { rotation: r(4) },
     },
     swaps: { eyes: 'open', mouth: 'B' },
     lineOfActionHint: 'Vertical with a slight forward lean; feet planted wide.',
@@ -191,10 +202,10 @@ export const POSE_LIBRARY: LibraryPose[] = [
       chest: { rotation: r(14) },
       neck: { rotation: r(12) },
       head: { rotation: r(10) },
-      L_upperarm: { rotation: r(62) },
-      R_upperarm: { rotation: r(-60) },
-      L_forearm: { rotation: r(72) },
-      R_forearm: { rotation: r(-70) },
+      L_upperarm: { rotation: r(68) },
+      R_upperarm: { rotation: r(-49) },
+      L_forearm: { rotation: r(80) },
+      R_forearm: { rotation: r(-57) },
       L_thigh: { rotation: r(-14) },
       L_shin: { rotation: r(-18) },
       L_ear: { rotation: r(44) },
@@ -246,8 +257,8 @@ export const POSE_LIBRARY: LibraryPose[] = [
     pose: {
       L_upperarm: { rotation: r(-54) },
       R_upperarm: { rotation: r(58) },
-      L_forearm: { rotation: r(52) },
-      R_forearm: { rotation: r(-50) },
+      L_forearm: { rotation: r(58) },
+      R_forearm: { rotation: r(-39) },
       spine: { rotation: r(-3) },
     },
     swaps: { eyes: 'open', mouth: 'C' },
@@ -278,8 +289,8 @@ export const POSE_LIBRARY: LibraryPose[] = [
       neck: { rotation: r(-18) },
       head: { rotation: r(-20) },
       chest: { rotation: r(-6) },
-      L_upperarm: { rotation: r(24) },
-      R_upperarm: { rotation: r(-22) },
+      L_upperarm: { rotation: r(27) },
+      R_upperarm: { rotation: r(-15) },
     },
     swaps: { eyes: 'open', mouth: 'X' },
   },
@@ -295,8 +306,8 @@ export const POSE_LIBRARY: LibraryPose[] = [
       L_thigh: { rotation: r(-14) },
       R_thigh: { rotation: r(-10) },
       L_shin: { rotation: r(-10) },
-      L_upperarm: { rotation: r(14) },
-      R_upperarm: { rotation: r(-12) },
+      L_upperarm: { rotation: r(18) },
+      R_upperarm: { rotation: r(-5) },
     },
     swaps: { eyes: 'open', mouth: 'X' },
   },
@@ -314,8 +325,8 @@ export const POSE_LIBRARY: LibraryPose[] = [
       L_shin: { rotation: r(-74) },
       R_shin: { rotation: r(-70) },
       spine: { rotation: r(6) },
-      L_upperarm: { rotation: r(40) },
-      R_upperarm: { rotation: r(-38) },
+      L_upperarm: { rotation: r(45) },
+      R_upperarm: { rotation: r(-29) },
     },
     swaps: { eyes: 'open', mouth: 'X' },
   },
@@ -329,8 +340,8 @@ export const POSE_LIBRARY: LibraryPose[] = [
       R_thigh: { rotation: r(24) },
       L_shin: { rotation: r(-4) },
       R_shin: { rotation: r(-22) },
-      L_upperarm: { rotation: r(20) },
-      R_upperarm: { rotation: r(-20) },
+      L_upperarm: { rotation: r(23) },
+      R_upperarm: { rotation: r(-14) },
       spine: { rotation: r(-2) },
     },
   },
@@ -345,8 +356,8 @@ export const POSE_LIBRARY: LibraryPose[] = [
       R_thigh: { rotation: r(-2) },
       L_shin: { rotation: r(-2) },
       R_shin: { rotation: r(-46) },
-      L_upperarm: { rotation: r(4) },
-      R_upperarm: { rotation: r(-4) },
+      L_upperarm: { rotation: r(6) },
+      R_upperarm: { rotation: r(-1) },
     },
   },
   {
@@ -360,8 +371,109 @@ export const POSE_LIBRARY: LibraryPose[] = [
       R_thigh: { rotation: r(12) },
       L_shin: { rotation: r(-14) },
       R_shin: { rotation: r(-8) },
-      L_upperarm: { rotation: r(12) },
-      R_upperarm: { rotation: r(-12) },
+      L_upperarm: { rotation: r(15) },
+      R_upperarm: { rotation: r(-7) },
+    },
+  },
+  {
+    // The fourth walk key. Without it the cycle passes through "down"
+    // twice and the body bobs on a symmetric sine, which is the flat,
+    // mechanical walk everyone recognises. Up is higher than passing and
+    // the trailing leg is already extending.
+    id: 'walk_up',
+    name: 'Walk, up',
+    tags: ['walk', 'locomotion', 'up'],
+    intensity: 2,
+    pose: {
+      root: { translate: { x: 0, y: -9 } },
+      L_thigh: { rotation: r(6) },
+      R_thigh: { rotation: r(-14) },
+      L_shin: { rotation: r(-26) },
+      R_shin: { rotation: r(-6) },
+      L_upperarm: { rotation: r(-4) },
+      R_upperarm: { rotation: r(11) },
+    },
+  },
+  {
+    // A run is not a fast walk. The torso leans into it, the knees come
+    // up much higher, the arms drive from a bent elbow, and there is an
+    // airborne frame where neither foot is down.
+    id: 'run_contact',
+    name: 'Run, contact',
+    tags: ['run', 'locomotion', 'contact'],
+    intensity: 4,
+    pose: {
+      spine: { rotation: r(-11) },
+      chest: { rotation: r(-6) },
+      L_thigh: { rotation: r(-42) },
+      R_thigh: { rotation: r(34) },
+      L_shin: { rotation: r(-18) },
+      R_shin: { rotation: r(-52) },
+      L_upperarm: { rotation: r(48) },
+      R_upperarm: { rotation: r(-36) },
+      L_forearm: { rotation: r(-74) },
+      R_forearm: { rotation: r(66) },
+    },
+  },
+  {
+    id: 'run_down',
+    name: 'Run, down',
+    tags: ['run', 'locomotion', 'down'],
+    intensity: 4,
+    pose: {
+      root: { translate: { x: 0, y: 11 } },
+      spine: { rotation: r(-14) },
+      chest: { rotation: r(-7) },
+      L_thigh: { rotation: r(-22) },
+      R_thigh: { rotation: r(26) },
+      L_shin: { rotation: r(-30) },
+      R_shin: { rotation: r(-64) },
+      L_upperarm: { rotation: r(34) },
+      R_upperarm: { rotation: r(-24) },
+      L_forearm: { rotation: r(-62) },
+      R_forearm: { rotation: r(58) },
+    },
+  },
+  {
+    id: 'run_passing',
+    name: 'Run, passing',
+    tags: ['run', 'locomotion', 'passing'],
+    intensity: 4,
+    pose: {
+      root: { translate: { x: 0, y: -4 } },
+      spine: { rotation: r(-12) },
+      L_thigh: { rotation: r(-6) },
+      R_thigh: { rotation: r(-2) },
+      L_shin: { rotation: r(-8) },
+      // Not -96. That is exactly the validated knee limit, and authoring
+      // a pose against the stop leaves the skin no headroom: the calf
+      // loses 3.4% of its area in a single frame getting there, which
+      // the volume check sees and an audience reads as a pop.
+      R_shin: { rotation: r(-86) },
+      L_upperarm: { rotation: r(10) },
+      R_upperarm: { rotation: r(-4) },
+      L_forearm: { rotation: r(-52) },
+      R_forearm: { rotation: r(44) },
+    },
+  },
+  {
+    // The airborne key. A run has one; a walk never does, and leaving it
+    // out is what makes a "run" read as a hurried walk.
+    id: 'run_up',
+    name: 'Run, airborne',
+    tags: ['run', 'locomotion', 'up', 'airborne'],
+    intensity: 4,
+    pose: {
+      root: { translate: { x: 0, y: -22 } },
+      spine: { rotation: r(-9) },
+      L_thigh: { rotation: r(22) },
+      R_thigh: { rotation: r(-38) },
+      L_shin: { rotation: r(-58) },
+      R_shin: { rotation: r(-12) },
+      L_upperarm: { rotation: r(-26) },
+      R_upperarm: { rotation: r(40) },
+      L_forearm: { rotation: r(48) },
+      R_forearm: { rotation: r(-70) },
     },
   },
 ];
@@ -424,33 +536,75 @@ export function retargetPose(pose: Pose, boneIds: ReadonlySet<string>): Pose {
   return out;
 }
 
-/** A locomotion cycle assembled from the library, as a Clip. */
-export function walkCycle(view: ViewName, frames = 24): Clip {
+export type LocomotionKind = 'walk' | 'run';
+
+/**
+ * The natural period of a cycle, in frames.
+ *
+ * A walk is about half a second a step and a run about a third, and
+ * getting this wrong is the difference between a character who walks and
+ * one who mimes walking. Both are quantised to even frames so the
+ * half-cycle mirror lands on a key rather than between two.
+ */
+export function cyclePeriod(kind: LocomotionKind, fps: number): number {
+  const seconds = kind === 'run' ? 0.55 : 1;
+  return Math.max(6, Math.round((seconds * fps) / 2) * 2);
+}
+
+/**
+ * The four keys of a locomotion cycle, in order, over one period.
+ *
+ * Contact, down, passing, up, contact — the classical breakdown. The
+ * second half is the first half with the legs and arms swapped, which is
+ * what makes one authored half-cycle into a whole step.
+ */
+export function cyclePoses(
+  kind: LocomotionKind,
+  frames: number,
+): { frame: number; pose: Pose }[] {
+  const prefix = kind === 'run' ? 'run' : 'walk';
   const keys: { frame: number; poseId: string }[] = [
-    { frame: 0, poseId: 'walk_contact' },
-    { frame: Math.round(frames * 0.25), poseId: 'walk_down' },
-    { frame: Math.round(frames * 0.5), poseId: 'walk_passing' },
-    { frame: Math.round(frames * 0.75), poseId: 'walk_down' },
-    { frame: frames, poseId: 'walk_contact' },
+    { frame: 0, poseId: `${prefix}_contact` },
+    { frame: Math.round(frames * 0.125), poseId: `${prefix}_down` },
+    { frame: Math.round(frames * 0.25), poseId: `${prefix}_passing` },
+    { frame: Math.round(frames * 0.375), poseId: `${prefix}_up` },
+    { frame: Math.round(frames * 0.5), poseId: `${prefix}_contact` },
+    { frame: Math.round(frames * 0.625), poseId: `${prefix}_down` },
+    { frame: Math.round(frames * 0.75), poseId: `${prefix}_passing` },
+    { frame: Math.round(frames * 0.875), poseId: `${prefix}_up` },
+    { frame: frames, poseId: `${prefix}_contact` },
   ];
-  const channels = posesToChannels(
-    keys.map((k) => ({ frame: k.frame, pose: mirrorAtHalf(k, frames) })),
-  );
+  return keys.map((k) => ({ frame: k.frame, pose: mirrorAtHalf(k, frames) }));
+}
+
+/** A locomotion cycle assembled from the library, as a Clip. */
+export function locomotionCycle(kind: LocomotionKind, view: ViewName, frames = 24): Clip {
   return {
-    id: makeId('clip', `walk:${view}:${frames}`),
-    name: 'Walk cycle',
-    tags: ['walk', 'locomotion', 'loop'],
+    id: makeId('clip', `${kind}:${view}:${frames}`),
+    name: kind === 'run' ? 'Run cycle' : 'Walk cycle',
+    tags: [kind, 'locomotion', 'loop'],
     durationFrames: frames,
     loop: true,
-    channels,
+    channels: posesToChannels(cyclePoses(kind, frames)),
     view,
   };
 }
 
+export function walkCycle(view: ViewName, frames = 24): Clip {
+  return locomotionCycle('walk', view, frames);
+}
+
+export function runCycle(view: ViewName, frames = 14): Clip {
+  return locomotionCycle('run', view, frames);
+}
+
 function mirrorAtHalf(k: { frame: number; poseId: string }, frames: number): Pose {
   const base = getPose(k.poseId)?.pose ?? {};
-  // The second half of a walk is the first half with the legs swapped.
-  if (k.frame <= frames / 2) return base;
+  // The second half of a cycle is the first half with the limbs
+  // swapped. The frame *at* the half mark is the opposite contact, so
+  // the test is strict on one side and not the other; getting it wrong
+  // produces a cycle that limps.
+  if (k.frame < frames / 2 || k.frame >= frames) return base;
   const swapped: Pose = {};
   for (const [bone, t] of Object.entries(base)) {
     const other = bone.startsWith('L_')

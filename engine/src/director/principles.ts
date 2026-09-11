@@ -21,7 +21,7 @@
  * 12 Appeal            — silhouette clarity, asymmetry, negative space
  */
 
-import type { Shot, Character, Project, Channel } from '../graph/types.ts';
+import type { Shot, Character, Project, Channel, Rig, ViewName } from '../graph/types.ts';
 import type { CheckResult, Locator } from '../core/result.ts';
 import { pass, fail, measure } from '../core/result.ts';
 import type { EvaluatedFrame } from '../animation/evaluate.ts';
@@ -41,6 +41,7 @@ import { sampleChannel, hitchFrames, evaluateChannel } from '../timing/curves.ts
 import { measureLag, hasMotion } from '../animation/secondary.ts';
 import { isHeld, holdFraction, rangeFor, twosFraction } from '../timing/chart.ts';
 import { silhouetteStats } from '../geom/silhouette.ts';
+import { evaluatePose, indexSkeleton } from '../rig/skeleton.ts';
 import { actionClassFor } from '../animation/blocking.ts';
 import { DEFAULT_FPS } from '../core/units.ts';
 
@@ -96,6 +97,20 @@ const D: Required<Omit<PrincipleOptions, 'primaryFrames'>> = {
 /** Bones whose tips are treated as end effectors for arc analysis. */
 const EFFECTORS = ['L_hand', 'R_hand', 'L_foot', 'R_foot', 'head'];
 const FOOT_BONES = ['L_foot', 'R_foot'];
+/**
+ * How much a mirrored left/right rotation reads as a symmetric pose from
+ * each view. Head-on it is the whole story; in profile it is contra
+ * motion and none of it.
+ */
+const VIEW_FRONTALITY: Record<string, number> = {
+  front: 1,
+  back: 1,
+  threeQuarterL: 0.6,
+  threeQuarterR: 0.6,
+  sideL: 0,
+  sideR: 0,
+};
+
 const MIRROR_PAIRS: [string, string][] = [
   ['L_upperarm', 'R_upperarm'],
   ['L_forearm', 'R_forearm'],
@@ -132,6 +147,24 @@ export function validatePrinciples(
 
   const characterIds = [...new Set(shot.staging.characters.map((c) => c.characterId))];
   const charById = new Map(project.characters.map((c) => [c.id, c]));
+
+  if (characterIds.length === 0) {
+    // An establishing shot or a cutaway has no cast, and the principles
+    // of character animation have nothing to say about it. Reporting
+    // "0 key poses for 1 beat" on a shot of wind in the grass is a
+    // false failure that trains people to ignore the report. It is
+    // stated rather than skipped, so the absence is visible.
+    return [
+      pass({
+        name: 'principle.no_cast',
+        department: DEPT,
+        score: 1,
+        message: `Shot ${shot.number} has no cast, so the character-animation principles do not apply to it. Layout, colour and comp still do.`,
+        where,
+      }),
+      ...checkTiming(shot, cfg, where),
+    ];
+  }
 
   out.push(...checkPoseToPose(shot, where));
   out.push(...checkArcs(shot, performance, characterIds, cfg, where, project));
@@ -547,7 +580,14 @@ function checkOverlap(
   );
   let worstMismatch = 0;
   let worstTarget = '';
+  // Cross-correlation needs a track several times longer than the lag it
+  // is looking for. On a short cutaway there is simply not enough motion
+  // to resolve a four-frame drag from an eight-frame one, and the answer
+  // it returns is noise. That is a measurement that did not happen, not
+  // a rig that is wrong.
+  const resolvable = shot.durationFrames >= Math.max(24, hi * 4);
   for (const s of declared) {
+    if (!resolvable) break;
     const follower = additiveByTarget.get(s.target);
     const parentTarget = s.target.replace(/^bone:([^.]+)/, (_m, b: string) => `bone:${parentBone(b, parents)}`);
     const driver = primaryByTarget.get(parentTarget);
@@ -559,7 +599,18 @@ function checkOverlap(
       worstTarget = s.target;
     }
   }
-  if (worstTarget) {
+  if (!resolvable) {
+    checks.push(
+      pass({
+        name: 'principle.overlap_is_real',
+        department: DEPT,
+        score: 1,
+        severity: 'info',
+        message: `Shot ${shot.number} is ${shot.durationFrames} frames — too short to resolve a ${lo}-${hi} frame lag by cross-correlation, so the declared overlap was not verified here. It is unverified, not wrong.`,
+        where,
+      }),
+    );
+  } else if (worstTarget) {
     checks.push(
       measure({
         name: 'principle.overlap_is_real',
@@ -668,6 +719,29 @@ function checkTiming(shot: Shot, cfg: ResolvedPrincipleOptions, where: Locator):
   const offenders: { beat: string; frames: number; range: [number, number, number]; cls: string }[] = [];
   for (const beat of shot.beats) {
     const cls = actionClassFor(beat);
+    if (cls === 'dialogueBeat') {
+      // A dialogue beat lasts as long as the line lasts. That is not a
+      // timing decision an animator makes, so holding it to an action
+      // class's frame range reports every long line as an error and
+      // teaches exactly the wrong lesson. What *is* a decision is
+      // whether the beat matches its line: a beat padded well past the
+      // words is a character standing around waiting.
+      const line = shot.dialogue.find(
+        (l) => l.characterId === beat.characterId && Math.abs(l.startFrame - beat.startFrame) <= 2,
+      );
+      if (line) {
+        const slack = Math.max(4, Math.round(cfg.fps / 4));
+        if (Math.abs(beat.durationFrames - line.durationFrames) > slack) {
+          offenders.push({
+            beat: beat.id,
+            frames: beat.durationFrames,
+            range: [line.durationFrames - slack, line.durationFrames, line.durationFrames + slack],
+            cls,
+          });
+        }
+        continue;
+      }
+    }
     const range = rangeFor(cls, cfg.fps);
     if (beat.durationFrames < range[0] || beat.durationFrames > range[2]) {
       offenders.push({ beat: beat.id, frames: beat.durationFrames, range, cls });
@@ -729,6 +803,16 @@ function checkTwinning(
   const sampled = keyFrames.length ? keyFrames : frames.map((f) => f.frame).filter((f) => f % 6 === 0);
 
   for (const id of characterIds) {
+    // How much a mirrored rotation actually reads as symmetry depends on
+    // where the camera is. In a planar rig, `L = +20, R = -20` puts both
+    // arms out at the same angle in a front view — a mannequin — but in
+    // a side view it is one arm forward and one back, which is what a
+    // walk is supposed to do. Charging a side-view walk with twinning
+    // would push an animator to break a cycle that is already correct.
+    const view = shot.staging.characters.find((c) => c.characterId === id)?.view ?? 'front';
+    const frontality = VIEW_FRONTALITY[view] ?? 1;
+    if (frontality <= 0) continue;
+
     for (const f of sampled) {
       const entry = frames[Math.min(frames.length - 1, Math.max(0, f))]?.characters.get(id);
       if (!entry) continue;
@@ -743,7 +827,7 @@ function checkTwinning(
         if (Math.abs(wrapAngle(lb + rb)) < 0.05 && Math.abs(lb) > 0.05) matched++;
       }
       if (total === 0) continue;
-      const score = matched / total;
+      const score = (matched / total) * frontality;
       if (score > worst) {
         worst = score;
         worstWhere = { ...where, characterId: id, frame: f };
@@ -781,16 +865,37 @@ function checkFootSlide(
   let worst = 0;
   let worstWhere: Locator = where;
   for (const id of characterIds) {
+    const paths = new Map(FOOT_BONES.map((b) => [b, effectorPath(frames, id, b)]));
+    const all = [...paths.values()].flat();
+    if (all.length < 4) continue;
+    // The ground line is shared by both feet: it is where the character
+    // stands, not where each foot happens to get lowest.
+    const ground = Math.max(...all.map((p) => p.y));
+
     for (const bone of FOOT_BONES) {
-      const path = effectorPath(frames, id, bone);
+      const path = paths.get(bone) ?? [];
       if (path.length < 4) continue;
-      // A foot is in contact when it is near its lowest point for the shot.
-      const ys = path.map((p) => p.y);
-      const ground = Math.max(...ys);
+      const other = FOOT_BONES.find((b) => b !== bone);
+      const otherPath = other ? (paths.get(other) ?? []) : [];
+
       for (let i = 1; i < path.length; i++) {
-        const planted = ground - path[i].y < 4 && ground - path[i - 1].y < 4;
-        if (!planted) continue;
-        const speed = vdist(path[i - 1], path[i]);
+        // Contact is three conditions, not one. A foot swinging through
+        // the bottom of its arc at speed is near the ground and is not
+        // carrying any weight; charging it with skating punishes a run
+        // for having a run's vertical travel. It is in contact when it
+        // is down, it is the lower foot, and it is not still descending
+        // or already lifting.
+        const down = ground - path[i].y < 4 && ground - path[i - 1].y < 4;
+        if (!down) continue;
+        const lower = !otherPath[i] || path[i].y >= otherPath[i].y - 1;
+        if (!lower) continue;
+        const settled = Math.abs(path[i].y - path[i - 1].y) < 2.5;
+        if (!settled) continue;
+
+        // Slide is horizontal. A foot settling the last two pixels
+        // onto the ground is not skating, and measuring the Euclidean
+        // step charges it as though it were.
+        const speed = Math.abs(path[i].x - path[i - 1].x);
         if (speed > worst) {
           worst = speed;
           worstWhere = { ...where, characterId: id, boneId: bone, frame: i };
@@ -1014,12 +1119,47 @@ function checkProportions(
   let worstWhere: Locator = where;
   let measured = 0;
 
+  // The rest proportions of one view, measured from the rig's own
+  // skeleton for that view.
+  //
+  // A model sheet is a turnaround, and a turnaround's whole point is
+  // that the same character measures differently from different angles:
+  // an arm that reads 0.96 head units across the front reads 0.88 in
+  // three-quarter and 0.78 in profile, because it is foreshortened.
+  // Comparing every view against the front-view number reports correct
+  // foreshortening as the character going off model — which is not just
+  // a false alarm, it is an instruction to flatten the turnaround.
+  const restCache = new Map<string, Record<string, number>>();
+  const restRatios = (rig: Rig, view: ViewName): Record<string, number> => {
+    const key = `${rig.id}:${view}`;
+    const hit = restCache.get(key);
+    if (hit) return hit;
+    const skeleton = rig.viewSkeletons?.[view] ?? rig.skeleton;
+    const posed = evaluatePose(skeleton, {}, indexSkeleton(skeleton));
+    const head = posed.bones.get('head');
+    const headLen = head ? vdist(head.head, head.tail) : 0;
+    const out: Record<string, number> =
+      headLen > 1
+        ? {
+            armLengthOverHead:
+              (segLen(posed.bones, 'L_upperarm') + segLen(posed.bones, 'L_forearm')) / headLen,
+            legLengthOverHead:
+              (segLen(posed.bones, 'L_thigh') + segLen(posed.bones, 'L_shin')) / headLen,
+          }
+        : {};
+    restCache.set(key, out);
+    return out;
+  };
+
   for (const id of characterIds) {
     const character = charById.get(id);
     const sheet = character?.modelSheet;
     const rig = character?.rig;
     if (!sheet || !rig) continue;
     const expected = sheet.construction.proportionRatios;
+    const frontView: ViewName = rig.views.includes('front') ? 'front' : rig.views[0];
+    const front = restRatios(rig, frontView);
+
     for (const frame of frames) {
       const entry = frame.characters.get(id);
       if (!entry) continue;
@@ -1028,6 +1168,7 @@ function checkProportions(
       if (!head) continue;
       const headLen = vdist(head.head, head.tail);
       if (headLen < 1) continue;
+      const rest = restRatios(rig, entry.view);
       const arm =
         segLen(bones, 'L_upperarm') + segLen(bones, 'L_forearm');
       const leg = segLen(bones, 'L_thigh') + segLen(bones, 'L_shin');
@@ -1036,8 +1177,13 @@ function checkProportions(
         ['legLengthOverHead', leg / headLen],
       ];
       for (const [key, value] of checks) {
-        const want = expected[key];
-        if (!want || want <= 0) continue;
+        const sheetWant = expected[key];
+        if (!sheetWant || sheetWant <= 0) continue;
+        // The sheet stays the authority on the character's proportions;
+        // the view only supplies the foreshortening that angle implies.
+        const foreshorten =
+          front[key] && rest[key] ? rest[key] / front[key] : 1;
+        const want = sheetWant * foreshorten;
         measured++;
         const err = Math.abs(value - want) / want;
         if (err > worst) {

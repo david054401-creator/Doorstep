@@ -228,7 +228,25 @@ export function velocityProfile(channel: Channel, start: number, end: number): n
   return derivative(sampleChannel(channel, start, end));
 }
 
-/** Find frames where velocity jumps discontinuously (the "hitch" detector). */
+/**
+ * Find frames where velocity jumps discontinuously — the "hitch"
+ * detector.
+ *
+ * A hitch is a *discontinuity*, not merely a large acceleration. The
+ * obvious test — acceleration above some multiple of the shot's mean
+ * acceleration — flags every properly eased move on any shot with a
+ * hold in it, because a long hold drags the mean to nearly zero and an
+ * ordinary ease-out then looks like a spike. That is backwards: easing
+ * is the thing we want, and reporting it as a stutter teaches an
+ * animator to flatten their curves.
+ *
+ * So this measures jerk — how fast the acceleration itself is changing
+ * — against two bars. It must be large relative to the curve's own
+ * typical jerk (a robust median, not a mean, so one real hitch does not
+ * raise the bar past the next one), and it must be large in absolute
+ * terms relative to the speed range of the move, so a micro-wobble in a
+ * slow drift is not called a stutter.
+ */
 export function hitchFrames(
   channel: Channel,
   start: number,
@@ -236,16 +254,28 @@ export function hitchFrames(
   tolerance = 3.5,
 ): number[] {
   const vel = velocityProfile(channel, start, end);
+  if (vel.length < 5) return [];
   const accel = derivative(vel);
-  const mags = accel.map(Math.abs);
-  const mean = mags.reduce((a, b) => a + b, 0) / Math.max(1, mags.length);
-  if (mean < 1e-9) return [];
+  const jerk = derivative(accel);
+  const mags = jerk.map(Math.abs);
+  if (mags.length === 0) return [];
+
+  const sorted = [...mags].sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+  const speedRange = Math.max(...vel) - Math.min(...vel);
+  if (speedRange < 1e-9) return [];
+  // A hitch has to change the speed by a quarter of the move's whole
+  // speed range within a frame. Below that nobody sees it.
+  const bar = Math.max(median * tolerance, speedRange * 0.25);
+
   const keyFrames = new Set(channel.keyframes.map((k) => k.frame));
   const out: number[] = [];
   for (let i = 1; i < mags.length - 1; i++) {
-    const f = start + i;
+    // jerk[i] is the change in acceleration between samples i and i+1 of
+    // `accel`, which is centred two samples into the position track.
+    const f = start + i + 2;
     if (keyFrames.has(f) || keyFrames.has(f - 1) || keyFrames.has(f + 1)) continue;
-    if (mags[i] > mean * tolerance) out.push(f);
+    if (mags[i] > bar) out.push(f);
   }
   return out;
 }
