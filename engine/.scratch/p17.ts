@@ -1,0 +1,24 @@
+import { MIBO_DESIGN } from '../examples/mibo/design.ts';
+import { autoRig } from '../src/rig/autorig.ts';
+import { poseRig, defaultSwaps } from '../src/rig/rig.ts';
+import { renderScene } from '../src/render/renderer.ts';
+import { emptyScene } from '../src/render/scene.ts';
+import { encodePng } from '../src/raster/png.ts';
+import { parseHex } from '../src/core/color.ts';
+import { mTranslate } from '../src/core/math.ts';
+import { createImage, paste } from '../src/raster/buffer.ts';
+import { POSE_BATTERY } from '../src/rig/battery.ts';
+import { writeFileSync } from 'node:fs';
+const { rig } = autoRig(MIBO_DESIGN);
+const ids = ['p17_both_hands_face','p04_elbow_full','p05_crouch','p12_squash','p07_run_extreme','p19_wave'];
+const W=280,H=420;
+const sheet = createImage(W*ids.length, H, parseHex('#FBF7EF'));
+ids.forEach((id,i)=>{
+  const bp = POSE_BATTERY.find(p=>p.id===id)!;
+  const scene = emptyScene(W,H,parseHex('#F7F2E7'));
+  scene.layers.push(poseRig(rig, bp.pose, { view:'front', swaps: defaultSwaps(rig), colorModel: MIBO_DESIGN.colorModel }).layer);
+  scene.camera = mTranslate(W/2, H-40);
+  paste(sheet, renderScene(scene,{samples:4,supersample:2}), i*W, 0);
+});
+writeFileSync('/home/user/Doorstep/engine/.scratch/poses.png', encodePng(sheet));
+console.log(ids.join(' | '));

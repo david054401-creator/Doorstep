@@ -1,0 +1,14 @@
+{
+  "name": "@doorstep/film-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "2D Feature Engine — intent to structured film to verified frames. Structure first, pixels last.",
+  "bin": { "film": "./bin/film.mjs" },
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "test": "node --test --experimental-strip-types tests/",
+    "film": "node bin/film.mjs"
+  },
+  "engines": { "node": ">=22.18" }
+}
