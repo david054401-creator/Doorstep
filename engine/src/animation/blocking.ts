@@ -49,19 +49,29 @@ export type BlockingResult = {
   idleLayers: Record<string, IdleLayer>;
 };
 
-/** Map a beat to the action class whose timing range governs it. */
+/**
+ * Map a beat to the action class whose timing range governs it.
+ *
+ * This and `tagsFor` have to recognise the same verbs. When they drifted
+ * apart — the class knew "runs" and the tag list did not — a run beat
+ * was timed as locomotion and posed as an idle, and the result was a
+ * standing character sliding across the meadow. `tests/director.test.ts`
+ * holds them together.
+ */
 export function actionClassFor(beat: Beat): ActionClass {
   const a = beat.action.toLowerCase();
-  if (/\b(jump|leap|hop)\b/.test(a)) return 'jump';
+  if (/\b(jump|jumps|leap|leaps|hop|hops|spring|springs)\b/.test(a)) return 'jump';
   if (/\b(land|lands|landing)\b/.test(a)) return 'land';
-  if (/\b(run|runs|dash|sprint)\b/.test(a)) return 'runCycle';
-  if (/\b(walk|walks|steps?)\b/.test(a)) return 'walkCycle';
-  if (/\b(turn|turns|looks? (at|around|up|down))\b/.test(a)) return 'headTurn';
-  if (/\b(reach|reaches|grab|grabs|picks? up)\b/.test(a)) return 'reach';
-  if (/\b(gasp|starts?|recoils?|jolts?)\b/.test(a)) return 'takeDouble';
+  if (/\b(run|runs|running|ran|dash|dashes|sprint|sprints|race|races|charge|charges|bolt|bolts)\b/.test(a))
+    return 'runCycle';
+  if (/\b(walk|walks|walking|step|steps|stroll|strolls|wander|wanders|approach|approaches)\b/.test(a))
+    return 'walkCycle';
+  if (/\b(turn|turns|looks? (at|around|up|down|over))\b/.test(a)) return 'headTurn';
+  if (/\b(reach|reaches|grab|grabs|picks? up|takes?|holds? out)\b/.test(a)) return 'reach';
+  if (/\b(gasp|gasps|starts?|recoils?|jolts?|flinch|flinches)\b/.test(a)) return 'takeDouble';
   if (/\bsays:/.test(a)) return 'dialogueBeat';
   if (/\b(react|reacts|blinks?)\b/.test(a)) return 'react';
-  if (/\b(sits?|stands?|rises?)\b/.test(a)) return 'gesture';
+  if (/\b(sits?|stands?|rises?|kneels?|crouch|crouches)\b/.test(a)) return 'gesture';
   return beat.intensity >= 4 ? 'react' : 'gesture';
 }
 

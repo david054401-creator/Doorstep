@@ -6,7 +6,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildMiboProject } from '../examples/mibo/project.ts';
 import { allShots } from '../src/story/script-to-shots.ts';
-import { blockShot } from '../src/animation/blocking.ts';
+import { blockShot, tagsFor, actionClassFor, locomotionKindFor, LOCOMOTION_BONES } from '../src/animation/blocking.ts';
 import { evaluateShot } from '../src/animation/evaluate.ts';
 import { withFraming } from '../src/orchestrator/pipeline.ts';
 import { validatePrinciples } from '../src/director/principles.ts';
@@ -21,7 +21,7 @@ import { shapeFor, applyActionShape } from '../src/timing/templates.ts';
 import { phonemeTimeline, phonemesToVisemes, lipsyncLine, lipsyncOffset, graphemesToPhonemes } from '../src/animation/lipsync.ts';
 import { buildIdleLayer, scheduleBlinks } from '../src/animation/idle.ts';
 import { deriveOverlap, measureLag, hasMotion } from '../src/animation/secondary.ts';
-import { selectPose, scalePose, POSE_LIBRARY } from '../src/animation/pose-library.ts';
+import { selectPose, scalePose, POSE_LIBRARY, cyclePoses, cyclePeriod, locomotionCycle } from '../src/animation/pose-library.ts';
 import { makeRng } from '../src/core/rng.ts';
 import { rad } from '../src/core/math.ts';
 import { speechFrames } from '../src/core/units.ts';
@@ -269,6 +269,103 @@ describe('secondary action', () => {
     const { blocked } = prepare(0);
     for (const s of blocked.secondary) {
       assert.ok(s.lagFrames >= 2 && s.lagFrames <= 6, `${s.target} lags ${s.lagFrames}`);
+    }
+  });
+});
+
+describe('locomotion', () => {
+  const beat = (action: string) => ({
+    id: 'b',
+    intent: 'i',
+    action,
+    emotion: 'neutral' as const,
+    intensity: 3,
+    startFrame: 0,
+    durationFrames: 24,
+  });
+
+  test('the tag list and the action class agree about running', () => {
+    // They disagreed once: the class recognised "runs" and the tags did
+    // not, so a run beat searched the library for an idle pose and the
+    // shot slid a standing character across the ground.
+    for (const action of ['MIBO runs toward the tree', 'PIP walks away', 'MIBO sprints off']) {
+      const cls = actionClassFor(beat(action));
+      assert.ok(locomotionKindFor(cls), `${action} should be locomotion, got ${cls}`);
+      assert.ok(
+        tagsFor(beat(action)).includes('locomotion'),
+        `${action} should carry the locomotion tag, got ${tagsFor(beat(action)).join(',')}`,
+      );
+    }
+  });
+
+  test('every verb the class recognises has poses to draw on', () => {
+    for (const action of ['MIBO runs', 'MIBO walks']) {
+      const chosen = selectPose({ tags: tagsFor(beat(action)), intensity: 3 });
+      assert.ok(
+        chosen.tags.includes('locomotion'),
+        `"${action}" selected ${chosen.id}, which is not a locomotion pose`,
+      );
+    }
+  });
+
+  test('a cycle has four distinct keys and closes on its opening pose', () => {
+    for (const kind of ['walk', 'run'] as const) {
+      const period = cyclePeriod(kind, 24);
+      const keys = cyclePoses(kind, period);
+      assert.equal(keys[0].frame, 0);
+      assert.equal(keys[keys.length - 1].frame, period);
+      // Contact, down, passing, up, then the same four with the legs
+      // swapped, then back to the opening contact.
+      assert.equal(keys.length, 9);
+      assert.deepEqual(keys[0].pose, keys[keys.length - 1].pose, 'a cycle must loop');
+    }
+  });
+
+  test('the second half of a cycle swaps the legs', () => {
+    const period = cyclePeriod('walk', 24);
+    const keys = cyclePoses('walk', period);
+    const first = keys[0].pose;
+    const opposite = keys[4].pose; // the half-way contact
+    assert.ok(first.L_thigh && opposite.L_thigh);
+    assert.equal(opposite.L_thigh?.rotation, first.R_thigh?.rotation);
+    assert.equal(opposite.R_thigh?.rotation, first.L_thigh?.rotation);
+  });
+
+  test('a run is not a fast walk', () => {
+    // The distinguishing features, measured rather than asserted: more
+    // forward lean, a higher knee, and a frame with the body airborne.
+    const run = cyclePoses('run', cyclePeriod('run', 24));
+    const walk = cyclePoses('walk', cyclePeriod('walk', 24));
+    const lean = (ks: typeof run) => Math.min(...ks.map((k) => k.pose.spine?.rotation ?? 0));
+    const knee = (ks: typeof run) =>
+      Math.max(...ks.flatMap((k) => [Math.abs(k.pose.L_shin?.rotation ?? 0), Math.abs(k.pose.R_shin?.rotation ?? 0)]));
+    const rise = (ks: typeof run) => Math.min(...ks.map((k) => k.pose.root?.translate?.y ?? 0));
+    assert.ok(lean(run) < lean(walk), 'a run leans further forward');
+    assert.ok(knee(run) > knee(walk), 'a run lifts the knee higher');
+    assert.ok(rise(run) < rise(walk) - 8, 'a run leaves the ground');
+    assert.ok(cyclePeriod('run', 24) < cyclePeriod('walk', 24), 'a run steps faster');
+  });
+
+  test('the cycle period scales with the frame rate', () => {
+    assert.equal(cyclePeriod('walk', 24), 24);
+    assert.equal(cyclePeriod('walk', 12), 12);
+    assert.equal(cyclePeriod('walk', 48), 48);
+    assert.equal(cyclePeriod('run', 24) % 2, 0, 'the half-cycle has to land on a key');
+  });
+
+  test('a cycle clip loops and carries its channels', () => {
+    const clip = locomotionCycle('run', 'sideR', 14);
+    assert.equal(clip.loop, true);
+    assert.equal(clip.durationFrames, 14);
+    assert.ok(clip.channels.some((c) => c.target === 'bone:L_thigh.rotation'));
+  });
+
+  test('the legs belong to the cycle and the upper body to the acting', () => {
+    for (const bone of ['root', 'L_thigh', 'R_shin', 'L_foot']) {
+      assert.ok(LOCOMOTION_BONES.has(bone), `${bone} should be owned by the cycle`);
+    }
+    for (const bone of ['head', 'L_upperarm', 'spine', 'L_ear']) {
+      assert.ok(!LOCOMOTION_BONES.has(bone), `${bone} should be free for acting`);
     }
   });
 });
